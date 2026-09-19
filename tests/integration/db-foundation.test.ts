@@ -1,92 +1,86 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { Client } from "pg";
+﻿import { runner } from "node-pg-migrate";
 import { expect, test } from "vitest";
-import { getDatabaseConfig } from "../../src/lib/db/config.ts";
+import { connectTestDatabase, runDatabaseCommand } from "./helpers/database.ts";
 
-const execFileAsync = promisify(execFile);
+const domainTables = [
+  "dataset_columns",
+  "dataset_versions",
+  "datasets",
+  "organizations",
+  "workspaces",
+];
 
-test("banco limpo: conectividade, migração e reaplicação sem tabelas de domínio", async () => {
-  const testUrl = process.env.TEST_DATABASE_URL;
-  if (!testUrl) {
-    throw new Error(
-      "TEST_DATABASE_URL é obrigatória; integração não foi executada.",
-    );
-  }
-  const config = getDatabaseConfig(testUrl);
-  const databaseName = decodeURIComponent(new URL(testUrl).pathname.slice(1));
-  if (!databaseName.endsWith("_test")) {
-    throw new Error("O database de integração deve terminar em _test.");
-  }
-  if (
-    process.env.DATABASE_URL &&
-    decodeURIComponent(new URL(process.env.DATABASE_URL).pathname.slice(1)) ===
-      databaseName
-  ) {
-    throw new Error(
-      "O database de integração deve ser diferente do database da aplicação.",
-    );
-  }
-
-  const client = new Client(config);
+test("banco limpo: conectividade, cinco tabelas e reaplicação sem mudanças", async () => {
+  const client = await connectTestDatabase();
   try {
-    await client.connect();
-    const existingSchemas = await client.query(
-      "SELECT nspname FROM pg_namespace WHERE nspname IN ('app', 'migration_metadata')",
+    expect((await runDatabaseCommand("check")).stdout).toContain(
+      "METADATA_DB_OK",
     );
-    const existingTables = await client.query(
-      "SELECT schemaname, tablename FROM pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema')",
-    );
-    if (existingSchemas.rowCount || existingTables.rowCount) {
-      throw new Error(
-        "Use um database de teste vazio; nenhum objeto existente será removido.",
-      );
-    }
-
-    const env = { ...process.env, DATABASE_URL: testUrl };
-    const check = await execFileAsync(
-      process.execPath,
-      ["--conditions=react-server", "scripts/db/check.ts"],
-      { env, timeout: 15000 },
-    );
-    expect(check.stdout).toContain("METADATA_DB_OK");
-    const first = await execFileAsync(
-      process.execPath,
-      ["scripts/db/migrate.ts"],
-      {
-        env,
-        timeout: 15000,
-      },
-    );
-    expect(first.stdout).toContain("1 migração(ões)");
-
-    const historyBefore = await client.query(
+    const before = await client.query(
       "SELECT * FROM migration_metadata.history ORDER BY id",
     );
-    expect(historyBefore.rowCount).toBe(1);
-    const second = await execFileAsync(
-      process.execPath,
-      ["scripts/db/migrate.ts"],
-      {
-        env,
-        timeout: 15000,
-      },
+    expect(before.rowCount).toBe(2);
+    expect((await runDatabaseCommand("migrate")).stdout).toContain(
+      "0 migração(ões)",
     );
-    expect(second.stdout).toContain("0 migração(ões)");
-    const historyAfter = await client.query(
+    const after = await client.query(
       "SELECT * FROM migration_metadata.history ORDER BY id",
     );
-    expect(historyAfter.rows).toEqual(historyBefore.rows);
-    const appSchema = await client.query(
-      "SELECT nspname FROM pg_namespace WHERE nspname = 'app'",
-    );
-    expect(appSchema.rowCount).toBe(1);
+    expect(after.rows).toEqual(before.rows);
     const tables = await client.query(
       "SELECT schemaname, tablename FROM pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema') ORDER BY schemaname, tablename",
     );
     expect(tables.rows).toEqual([
+      ...domainTables.map((tablename) => ({ schemaname: "app", tablename })),
       { schemaname: "migration_metadata", tablename: "history" },
     ]);
+  } finally {
+    await client.end();
+  }
+});
+
+test("rollback explícito de T-003 e upgrade da fundação T-002 preservam o histórico inicial", async () => {
+  const client = await connectTestDatabase();
+  try {
+    const baseline = await client.query(
+      "SELECT * FROM migration_metadata.history ORDER BY id LIMIT 1",
+    );
+    // Database descartável previamente vazio; fixtures de domínio usam ROLLBACK.
+    await runner({
+      dbClient: client,
+      dir: "migrations",
+      direction: "down",
+      count: 1,
+      migrationsSchema: "migration_metadata",
+      migrationsTable: "history",
+      singleTransaction: true,
+      checkOrder: true,
+      logger: { info: () => {}, warn: () => {}, error: () => {} },
+    });
+    const tables = await client.query(
+      "SELECT tablename FROM pg_tables WHERE schemaname = 'app'",
+    );
+    expect(tables.rowCount).toBe(0);
+    const functions = await client.query(
+      "SELECT 1 FROM pg_proc p JOIN pg_namespace n ON p.pronamespace = n.oid WHERE n.nspname = 'app'",
+    );
+    expect(functions.rowCount).toBe(0);
+    expect(
+      (await client.query("SELECT * FROM migration_metadata.history")).rows,
+    ).toEqual(baseline.rows);
+    expect((await runDatabaseCommand("migrate")).stdout).toContain(
+      "1 migração(ões)",
+    );
+    expect(
+      (
+        await client.query(
+          "SELECT * FROM migration_metadata.history ORDER BY id LIMIT 1",
+        )
+      ).rows,
+    ).toEqual(baseline.rows);
+    expect((await runDatabaseCommand("migrate")).stdout).toContain(
+      "0 migração(ões)",
+    );
   } finally {
     await client.end();
   }

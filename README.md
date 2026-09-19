@@ -1,6 +1,6 @@
 ﻿# Analytics AI
 
-Fundação da Technical Alpha (T-001/T-002): Next.js App Router, React, TypeScript e PostgreSQL para metadados.
+Fundação da Technical Alpha (T-001 a T-003): Next.js App Router, React, TypeScript e PostgreSQL para metadados.
 A aplicação contém somente uma página estática. Os módulos são diretórios reservados, sem comportamento de domínio.
 
 ## Requisitos
@@ -39,7 +39,7 @@ Nunca coloque segredos em variáveis `NEXT_PUBLIC_`.
 ## PostgreSQL e migrações (T-002)
 
 PostgreSQL guarda metadados da aplicação. O futuro motor de consultas analíticas tem arquitetura
-independente e continua pendente do SP-01. T-002 não cria tabelas de domínio.
+independente e continua pendente do SP-01. T-002 cria a fundação; T-003 adiciona somente o schema de metadados.
 
 Copie `.env.example` para `.env.local` e preencha `DATABASE_URL` com a URL completa do database.
 Use `postgresql://<usuario>:<senha-escapada>@<host>:<porta>/<database>`; escape os componentes
@@ -89,7 +89,12 @@ Em servidores remotos, configure TLS conforme o provedor, sem desativar validaç
 
 ```text
 database de metadados
-├── app                         (vazio, reservado ao T-003)
+├── app
+│   ├── organizations
+│   ├── workspaces
+│   ├── datasets
+│   ├── dataset_versions
+│   └── dataset_columns
 └── migration_metadata
     └── history                 (controle técnico de migrações)
 ```
@@ -97,8 +102,16 @@ database de metadados
 `npm run db:migrate` aplica SQL de `migrations/` com transação, ordem e advisory lock.
 Uma segunda execução deve informar zero migrações aplicadas. Não altera o build ou o startup.
 Migrações novas recebem prefixo numérico crescente; não modifique as já aplicadas.
-Não há reset automático nem criação de Organization, Workspace, Dataset ou outras entidades.
+Em um banco vazio são aplicadas duas migrações; em um banco T-002, somente a nova migração T-003.
+Não há reset automático, seeds, API ou UI para manipular essas tabelas.
 O schema `public` padrão do PostgreSQL permanece sem tabelas da aplicação.
+
+O [ADR-010](docs/adr/ADR-010-core-metadata-schema.md) documenta as colunas, constraints e índices.
+IDs usam UUIDv4 gerado no banco; timestamps usam `timestamptz`.
+As quatro FKs usam `ON DELETE RESTRICT ON UPDATE RESTRICT`.
+O trigger `updated_at` mantém apenas timestamps: não implementa versionamento, autorização ou imutabilidade.
+`source_type` aceita texto não vazio; tipos suportados serão validados pela aplicação.
+As referências de storage nunca devem conter bytes de arquivos, credenciais ou URLs assinadas.
 
 Os módulos de metadados ficam em `src/lib/db`; a aplicação server-side importa `@/lib/db`.
 O pool nativo de `pg` é criado sob demanda. Scripts usam TypeScript nativo do Node e
@@ -113,10 +126,13 @@ Crie um database vazio separado, terminado em `_test`, configure `TEST_DATABASE_
 npm run test:integration
 ```
 
-O teste verifica conectividade, primeira migração, reaplicação sem mudanças no histórico,
-existência de `app` e ausência de tabelas de domínio. Ele não usa fallback para `DATABASE_URL`.
+A suíte verifica conectividade, migração completa, reaplicação sem mudanças no histórico,
+rollback explícito de T-003 e upgrade da fundação T-002, além das constraints das cinco tabelas.
+Ela não usa fallback para `DATABASE_URL`.
 Se não houver configuração/conectividade, o comando falha explicitamente.
-O teste recusa schemas `app`/`migration_metadata` e tabelas preexistentes; não faz limpeza destrutiva.
+A preparação global recusa schemas `app`/`migration_metadata` e tabelas preexistentes.
+O teste de rollback remove/recria somente as tabelas que essa execução criou no banco descartável.
+Os testes de domínio usam transações com rollback e não dependem da ordem dos arquivos de teste.
 Após a execução, mantenha o banco para inspeção ou recrie apenas esse database descartável
 antes de repetir a suíte. O banco de desenvolvimento nunca é resetado pelos testes.
 
@@ -167,4 +183,4 @@ Git foi inicializado localmente. CI de provedor fica pendente da escolha da hosp
 - [EPIC-01](tasks/EPIC-01-data-foundation.md)
 - [Prompt T-001](tasks/T-001-prompt.md)
 
-T-003 e demais tickets permanecem pendentes.
+T-004 e demais tickets permanecem pendentes.

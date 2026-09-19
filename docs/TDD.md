@@ -26,7 +26,7 @@ Next.js App Router + React + TypeScript form the web application in the modular 
 Accepted during T-002. See [ADR-003](adr/ADR-003-postgresql-metadata.md).
 
 Store organizations, workspaces, datasets, semantic metadata, metrics, dashboards and execution metadata.
-These are future entities: T-002 creates only the empty `app` schema and migration history.
+T-002 creates the empty `app` schema and migration history; T-003 adds only the core metadata hierarchy.
 The metadata database (`pg`) is separate from the analytical execution adapter (DuckDB still requires SP-01).
 
 ### ADR-004 — Object storage
@@ -59,6 +59,16 @@ Use `pg` and explicit SQL migrations managed by `node-pg-migrate` for applicatio
 Keep history in `migration_metadata.history`. Apply migrations through an administrative command,
 never during build, startup, development server startup or HTTP requests.
 Docker Compose is an optional local PostgreSQL environment; `DATABASE_URL` defines the connection.
+
+### ADR-010 — Core metadata schema
+Accepted during T-003. See [ADR-010](adr/ADR-010-core-metadata-schema.md) for columns and constraints.
+
+`app.organizations → workspaces → datasets → dataset_versions → dataset_columns` uses mandatory
+parent FKs with DELETE/UPDATE RESTRICT, UUIDv4 database defaults and timestamptz timestamps.
+DatasetVersion status uses named CHECK constraints. `source_type` is nonempty text; its supported
+vocabulary belongs to the application, not a database enum or connector-specific CHECK.
+The updated_at triggers maintain timestamps only, not authorization, versioning or immutability.
+No authorization, RLS, upload, storage adapter or analytical engine is implemented in T-003.
 
 ## 3. High-level architecture
 
