@@ -1,0 +1,10 @@
+node_modules/
+.next/
+out/
+coverage/
+package-lock.json
+next-env.d.ts
+# Documentos originais fora das alterações de T-001.
+AGENTS.md
+docs/
+tasks/
