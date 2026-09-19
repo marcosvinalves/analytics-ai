@@ -18,14 +18,16 @@ Accepted.
 Keep logical module boundaries but deploy simply while the product is early and maintained by a solo developer.
 
 ### ADR-002 — Next.js + TypeScript
-Candidate.
+Accepted for Technical Alpha during T-001.
 
-Preferred because it matches the current development direction. Confirm before deep implementation if repository constraints differ.
+Next.js App Router + React + TypeScript form the web application in the modular monolith.
 
 ### ADR-003 — PostgreSQL metadata
-Candidate/recommended.
+Accepted during T-002. See [ADR-003](adr/ADR-003-postgresql-metadata.md).
 
 Store organizations, workspaces, datasets, semantic metadata, metrics, dashboards and execution metadata.
+These are future entities: T-002 creates only the empty `app` schema and migration history.
+The metadata database (`pg`) is separate from the analytical execution adapter (DuckDB still requires SP-01).
 
 ### ADR-004 — Object storage
 Use an abstraction for dataset files. Local filesystem is acceptable in local development.
@@ -49,6 +51,14 @@ Structured output still requires semantic validation.
 Accepted.
 
 Domain code should not depend directly on one model/provider SDK.
+
+### ADR-009 — Metadata migrations
+Accepted during T-002. See [ADR-009](adr/ADR-009-database-migrations.md).
+
+Use `pg` and explicit SQL migrations managed by `node-pg-migrate` for application metadata only.
+Keep history in `migration_metadata.history`. Apply migrations through an administrative command,
+never during build, startup, development server startup or HTTP requests.
+Docker Compose is an optional local PostgreSQL environment; `DATABASE_URL` defines the connection.
 
 ## 3. High-level architecture
 

@@ -1,6 +1,6 @@
 ﻿# Analytics AI
 
-Bootstrap da Technical Alpha (T-001): Next.js App Router, React e TypeScript.
+Fundação da Technical Alpha (T-001/T-002): Next.js App Router, React, TypeScript e PostgreSQL para metadados.
 A aplicação contém somente uma página estática. Os módulos são diretórios reservados, sem comportamento de domínio.
 
 ## Requisitos
@@ -32,9 +32,93 @@ npm ci
 npm run dev
 ```
 
-Abra <http://localhost:3000>. Nenhuma variável de ambiente é obrigatória neste ticket.
-`.env.example` documenta a convenção; `.env.local` é opcional e ignorado pelo Git.
+Abra <http://localhost:3000>. A página estática e o build não exigem banco.
+Operações de metadados exigem `DATABASE_URL`. `.env.local` é ignorado pelo Git.
 Nunca coloque segredos em variáveis `NEXT_PUBLIC_`.
+
+## PostgreSQL e migrações (T-002)
+
+PostgreSQL guarda metadados da aplicação. O futuro motor de consultas analíticas tem arquitetura
+independente e continua pendente do SP-01. T-002 não cria tabelas de domínio.
+
+Copie `.env.example` para `.env.local` e preencha `DATABASE_URL` com a URL completa do database.
+Use `postgresql://<usuario>:<senha-escapada>@<host>:<porta>/<database>`; escape os componentes
+de usuário/senha com percent-encoding. Não faça referência a outras variáveis dentro da URL.
+Variáveis exportadas no processo têm precedência sobre o arquivo local.
+Os scripts carregam somente `.env.local`, não toda a hierarquia `.env*` do Next.js.
+
+O database deve existir antes das migrações. Os comandos não criam databases ou usuários.
+
+### Opção A: Docker Compose
+
+Instale/inicie Docker com Compose e preencha também `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+`POSTGRES_DB` e `POSTGRES_PORT` no arquivo local. A URL deve usar os mesmos valores,
+host `127.0.0.1` e a porta publicada. Não há senha padrão.
+
+```powershell
+Copy-Item .env.example .env.local
+# Preencha o arquivo local antes de iniciar o banco.
+docker compose --env-file .env.local up -d --wait
+npm run db:check
+npm run db:migrate
+```
+
+Compose usa `postgres:18.6-bookworm`, healthcheck e volume nomeado persistente.
+A porta fica restrita a `127.0.0.1`; a aplicação roda normalmente no host.
+Se 5432 já estiver ocupada, escolha outra `POSTGRES_PORT` e ajuste a URL.
+Para parar preservando os dados: `docker compose --env-file .env.local down`.
+As variáveis de inicialização da imagem só criam usuário/database em volume vazio;
+alterar a senha no arquivo não altera a senha de um cluster já inicializado.
+Não use o usuário administrador local deste exemplo como modelo de permissões de produção.
+
+### Opção B: PostgreSQL nativo ou existente
+
+Provisione um database vazio dedicado e um usuário com permissão para conectar e criar schemas.
+Por exemplo, com as ferramentas PostgreSQL e um usuário previamente provisionado:
+
+```powershell
+createdb -h 127.0.0.1 -p 5432 -U <usuario> -W -O <usuario> analytics_metadata
+```
+
+A senha é solicitada interativamente. Configure `DATABASE_URL`, execute `npm run db:check`
+e `npm run db:migrate`. Não são necessárias variáveis `POSTGRES_*` ou Docker nesse caminho.
+No Windows, se as ferramentas não estiverem no PATH, use o diretório `bin` da instalação.
+Em servidores remotos, configure TLS conforme o provedor, sem desativar validação do certificado.
+
+### Resultado e manutenção
+
+```text
+database de metadados
+├── app                         (vazio, reservado ao T-003)
+└── migration_metadata
+    └── history                 (controle técnico de migrações)
+```
+
+`npm run db:migrate` aplica SQL de `migrations/` com transação, ordem e advisory lock.
+Uma segunda execução deve informar zero migrações aplicadas. Não altera o build ou o startup.
+Migrações novas recebem prefixo numérico crescente; não modifique as já aplicadas.
+Não há reset automático nem criação de Organization, Workspace, Dataset ou outras entidades.
+O schema `public` padrão do PostgreSQL permanece sem tabelas da aplicação.
+
+Os módulos de metadados ficam em `src/lib/db`; a aplicação server-side importa `@/lib/db`.
+O pool nativo de `pg` é criado sob demanda. Scripts usam TypeScript nativo do Node e
+`--env-file-if-exists`; não foi necessário instalar `tsx` ou `@next/env`.
+`server-only` impede o uso do pool em componentes cliente.
+
+### Integração com banco limpo
+
+Crie um database vazio separado, terminado em `_test`, configure `TEST_DATABASE_URL` e execute:
+
+```sh
+npm run test:integration
+```
+
+O teste verifica conectividade, primeira migração, reaplicação sem mudanças no histórico,
+existência de `app` e ausência de tabelas de domínio. Ele não usa fallback para `DATABASE_URL`.
+Se não houver configuração/conectividade, o comando falha explicitamente.
+O teste recusa schemas `app`/`migration_metadata` e tabelas preexistentes; não faz limpeza destrutiva.
+Após a execução, mantenha o banco para inspeção ou recrie apenas esse database descartável
+antes de repetir a suíte. O banco de desenvolvimento nunca é resetado pelos testes.
 
 ## Verificações
 
@@ -68,6 +152,9 @@ Encerre o servidor com Ctrl+C após a verificação.
 - `src/app/`: layout, página inicial e CSS.
 - `src/modules/`: placeholders para auth, tenant, dataset, semantic, metrics, query, dashboard e ai.
 - `tests/unit/`: teste mínimo de renderização no servidor.
+- `src/lib/db/`, `scripts/db/`, `migrations/`: conexão de metadados e migrações administrativas.
+- `tests/integration/`: verificação opt-in com PostgreSQL real.
+- `docs/adr/`: decisões de infraestrutura e migrações.
 - `docs/` e `tasks/`: documentos de produto, arquitetura e tickets.
 
 Git foi inicializado localmente. CI de provedor fica pendente da escolha da hospedagem do repositório; os comandos acima podem ser reutilizados no pipeline.
@@ -80,4 +167,4 @@ Git foi inicializado localmente. CI de provedor fica pendente da escolha da hosp
 - [EPIC-01](tasks/EPIC-01-data-foundation.md)
 - [Prompt T-001](tasks/T-001-prompt.md)
 
-T-002 e demais tickets permanecem pendentes.
+T-003 e demais tickets permanecem pendentes.
