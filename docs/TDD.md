@@ -30,7 +30,11 @@ T-002 creates the empty `app` schema and migration history; T-003 adds only the 
 The metadata database (`pg`) is separate from the analytical execution adapter (DuckDB still requires SP-01).
 
 ### ADR-004 — Object storage
-Use an abstraction for dataset files. Local filesystem is acceptable in local development.
+Accepted for T-004. See [ADR-004](adr/ADR-004-local-raw-storage.md).
+Use a minimal RawStorage contract (stage, publishOnce, discard, remove) with local filesystem.
+Server-controlled UUID keys, exclusive immutable publication, and explicit compensation after
+confirmed database rollback. Preserve raw objects on uncertain COMMIT outcomes.
+The upload flow is development-only scaffolding, NOT authentication, authorization or tenant security.
 
 ### ADR-005 — DuckDB analytics
 **Spike required (SP-01).**
@@ -181,6 +185,13 @@ Failure:
 `PROCESSING → FAILED`
 
 Do not mutate the raw uploaded file in place.
+
+T-004 implements only receive/stage, metadata validation, immutable raw publication and a short
+transaction creating Dataset + DatasetVersion(PROCESSING, CSV). It adds original_filename and
+size_bytes through an additive migration. The default configurable Alpha ingestion limit is 10 MiB.
+No CSV parsing, profiling, columns, READY transition, workers or queues are implemented yet.
+The local UI is `/data/upload`; its POST endpoint uses a server-configured workspace and resolves
+organization in PostgreSQL. It is disabled in production regardless of its opt-in flag.
 
 ## 7. Semantic Layer
 The Semantic Layer maps physical data to business meaning.

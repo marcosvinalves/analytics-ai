@@ -19,7 +19,7 @@ test("banco limpo: conectividade, cinco tabelas e reaplicação sem mudanças", 
     const before = await client.query(
       "SELECT * FROM migration_metadata.history ORDER BY id",
     );
-    expect(before.rowCount).toBe(2);
+    expect(before.rowCount).toBe(3);
     expect((await runDatabaseCommand("migrate")).stdout).toContain(
       "0 migração(ões)",
     );
@@ -50,7 +50,7 @@ test("rollback explícito de T-003 e upgrade da fundação T-002 preservam o his
       dbClient: client,
       dir: "migrations",
       direction: "down",
-      count: 1,
+      count: 2,
       migrationsSchema: "migration_metadata",
       migrationsTable: "history",
       singleTransaction: true,
@@ -69,7 +69,7 @@ test("rollback explícito de T-003 e upgrade da fundação T-002 preservam o his
       (await client.query("SELECT * FROM migration_metadata.history")).rows,
     ).toEqual(baseline.rows);
     expect((await runDatabaseCommand("migrate")).stdout).toContain(
-      "1 migração(ões)",
+      "2 migração(ões)",
     );
     expect(
       (

@@ -52,11 +52,11 @@ em um processo administrativo Node, fora do bundler Next.js.
 
 Testes unitários executam sem banco. Integração é um comando separado que exige `TEST_DATABASE_URL`,
 sem fallback e com database dedicado terminado em `_test`.
-A preparação global recusa tabelas ou schemas da aplicação já existentes e aplica as duas migrações
+A preparação global recusa tabelas ou schemas da aplicação já existentes e aplica as três migrações
 em um database inicialmente vazio. Os testes verificam conectividade, reaplicação sem mudanças e
-as cinco tabelas do T-003. Um teste de rollback remove somente os objetos recém-criados do T-003
-no database descartável, verifica a fundação vazia T-002 e reaplica T-003, preservando seu histórico inicial.
-Fixtures de domínio usam transações revertidas ao final de cada caso.
+as cinco tabelas do T-003 e as colunas aditivas do T-004. Um teste de rollback reverte T-004 e T-003
+no database descartável, verifica a fundação vazia T-002 e reaplica ambas, preservando seu histórico inicial.
+Fixtures de schema usam transações revertidas; os testes de upload removem seus próprios registros.
 Não há remoção de objetos preexistentes nem reset do banco de desenvolvimento.
 O database fica disponível para inspeção e precisa ser recriado explicitamente antes de outra execução completa.
 

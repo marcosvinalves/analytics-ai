@@ -86,6 +86,11 @@ Acceptance:
 ### T-004 — CSV upload
 Implement upload endpoint/UI.
 
+Implementation ready for review. Approved T-004 scope stops at immutable raw storage and
+DatasetVersion(PROCESSING), awaiting future processing; no parser, worker, queue or lifecycle
+transition is included. Local development scaffolding is not authentication, authorization or
+tenant security and is disabled in production. See ADR-004 and README for setup and verification.
+
 Acceptance:
 - only supported file types accepted;
 - configurable size limit;

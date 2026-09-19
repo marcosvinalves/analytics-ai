@@ -16,9 +16,9 @@ export default async function setup() {
       );
     }
     const result = await runDatabaseCommand("migrate");
-    if (!result.stdout.includes("2 migração(ões)")) {
+    if (!result.stdout.includes("3 migração(ões)")) {
       throw new Error(
-        "Banco limpo deve receber exatamente as migrações T-002 e T-003.",
+        "Banco limpo deve receber as três migrações T-002, T-003 e T-004.",
       );
     }
   } finally {

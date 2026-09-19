@@ -143,3 +143,12 @@ Integração em PostgreSQL real: banco limpo, upgrade T-002, rollback explícito
 UUIDs, timestamps, FKs, ownership de duas organizações, RESTRICT, unicidade, status, NULLs,
 contagens, perfil JSON e catálogo de índices/triggers.
 Fixtures usam transações revertidas, sem seeds de produção e sem exigir CREATEDB do usuário dos testes.
+
+## Extensão aditiva T-004
+
+A migração `202609190003_add_upload_metadata.sql` acrescenta em `app.dataset_versions`
+`original_filename text NULL` com CHECK nomeado de texto não vazio e `size_bytes bigint NULL`
+com CHECK nomeado de valor positivo. Ambos têm default implícito NULL para compatibilidade
+com registros anteriores; o upload T-004 sempre fornece os dois valores.
+Nenhuma tabela, FK ou índice adicional foi criado. A migração T-003 permanece inalterada.
+O filename é somente metadado de exibição; os bytes ficam no storage descrito no ADR-004.

@@ -1,7 +1,7 @@
 ﻿# Analytics AI
 
-Fundação da Technical Alpha (T-001 a T-003): Next.js App Router, React, TypeScript e PostgreSQL para metadados.
-A aplicação contém somente uma página estática. Os módulos são diretórios reservados, sem comportamento de domínio.
+Technical Alpha (T-001 a T-004): Next.js App Router, React, TypeScript, PostgreSQL para metadados e upload CSV local.
+O upload persiste o arquivo raw e cria Dataset/DatasetVersion em PROCESSING, aguardando processamento futuro.
 
 ## Requisitos
 
@@ -102,8 +102,8 @@ database de metadados
 `npm run db:migrate` aplica SQL de `migrations/` com transação, ordem e advisory lock.
 Uma segunda execução deve informar zero migrações aplicadas. Não altera o build ou o startup.
 Migrações novas recebem prefixo numérico crescente; não modifique as já aplicadas.
-Em um banco vazio são aplicadas duas migrações; em um banco T-002, somente a nova migração T-003.
-Não há reset automático, seeds, API ou UI para manipular essas tabelas.
+Em um banco vazio são aplicadas três migrações; em um banco T-003, somente a migração aditiva T-004.
+Não há reset automático ou seeds. O upload local cria Dataset e DatasetVersion.
 O schema `public` padrão do PostgreSQL permanece sem tabelas da aplicação.
 
 O [ADR-010](docs/adr/ADR-010-core-metadata-schema.md) documenta as colunas, constraints e índices.
@@ -127,14 +127,129 @@ npm run test:integration
 ```
 
 A suíte verifica conectividade, migração completa, reaplicação sem mudanças no histórico,
-rollback explícito de T-003 e upgrade da fundação T-002, além das constraints das cinco tabelas.
+rollback explícito de T-004/T-003 e upgrade da fundação T-002, além das constraints das cinco tabelas.
+Também testa upload com filesystem/PostgreSQL e inicia Next dev em porta loopback temporária
+para verificar a página e o endpoint HTTP real. Encerre outras instâncias de Next dev do checkout
+antes da suíte (o diretório de build de desenvolvimento é compartilhado).
 Ela não usa fallback para `DATABASE_URL`.
 Se não houver configuração/conectividade, o comando falha explicitamente.
 A preparação global recusa schemas `app`/`migration_metadata` e tabelas preexistentes.
 O teste de rollback remove/recria somente as tabelas que essa execução criou no banco descartável.
-Os testes de domínio usam transações com rollback e não dependem da ordem dos arquivos de teste.
+Os testes de schema usam transações com rollback; os de upload removem somente seus próprios fixtures.
 Após a execução, mantenha o banco para inspeção ou recrie apenas esse database descartável
 antes de repetir a suíte. O banco de desenvolvimento nunca é resetado pelos testes.
+
+## Upload CSV local (T-004)
+
+O contexto temporário **não é autenticação, autorização ou segurança de tenant**.
+Não use em ambiente público, multiusuário ou produção. Página e endpoint retornam 404
+em produção mesmo com a flag ligada. Organização vem do banco; workspace é configuração do servidor.
+
+Depois de aplicar as migrações, use um workspace local existente ou crie explicitamente
+um fixture no seu banco de desenvolvimento (via cliente SQL):
+
+```sql
+WITH organization AS (
+  INSERT INTO app.organizations (name) VALUES ('Desenvolvimento local') RETURNING id
+)
+INSERT INTO app.workspaces (organization_id, name)
+SELECT id, 'Uploads locais' FROM organization RETURNING id;
+```
+
+Em `.env.local`, mantenha DATABASE_URL e configure:
+
+```dotenv
+ENABLE_LOCAL_UPLOAD=true
+DEV_UPLOAD_WORKSPACE_ID=<UUID retornado pelo SQL>
+LOCAL_UPLOAD_ORIGIN=http://127.0.0.1:3000
+LOCAL_STORAGE_ROOT=.local/raw-storage
+MAX_UPLOAD_BYTES=10485760
+```
+
+Não versione `.env.local`, arquivos raw ou credenciais. O storage deve ficar fora de
+`public`, em diretório privado controlado pelo operador. Inicie explicitamente em loopback:
+
+```sh
+npm run dev -- --hostname 127.0.0.1
+```
+
+Abra `http://127.0.0.1:3000/data/upload`, selecione um `.csv` não vazio e envie.
+Nome do dataset é opcional. A UI mostra nome, arquivo, tamanho e PROCESSING / aguardando
+processamento; IDs ficam em detalhes. Não há parsing, preview, polling, profiling,
+criação de DatasetColumn ou processamento em background.
+
+API: `POST /api/workspaces/{workspaceId}/datasets`, multipart com exatamente um `file`
+e opcionalmente `name`. Origin/Host devem corresponder a LOCAL_UPLOAD_ORIGIN.
+Campos adicionais, incluindo organizationId, datasetId, datasetVersionId, storageKey
+e sourceType, são rejeitados. Limite configurável de 10 MiB com contagem dos bytes reais,
+envelope adicional de até 64 KiB e timeout de recebimento de 60 segundos. Não há limite
+de concorrência por processo. Extensão/MIME não validam a estrutura interna do CSV.
+
+Resposta 201:
+
+```json
+{
+  "dataset": { "id": "UUID", "workspaceId": "UUID", "name": "Vendas" },
+  "version": {
+    "id": "UUID",
+    "versionNumber": 1,
+    "sourceType": "CSV",
+    "status": "PROCESSING",
+    "originalFilename": "vendas.csv",
+    "sizeBytes": 20
+  }
+}
+```
+
+Erros retornam `{error: {code, message, requestId}}`: 400 entrada inválida, 403 origem,
+404 indisponível, 408 timeout, 413 tamanho, 415 tipo, 500 storage/interno, 503 banco/resultado
+incerto. O resultado incerto não deve ser repetido automaticamente: pode ter sido persistido.
+
+Layout privado, com namespace lógico `raw`:
+
+```text
+.local/raw-storage/
+├── .staging/{UUID temporário}
+└── workspaces/{workspaceId}/versions/{datasetVersionId}/raw.csv
+```
+
+Publicação usa hard link exclusivo no mesmo volume; nunca usa o nome original como caminho.
+O filesystem precisa suportar hard links. Não há transação PostgreSQL durante o recebimento.
+Após publicação, uma transação curta insere os dois registros. Rollback confirmado permite
+compensação; COMMIT incerto preserva o raw. Quedas e falhas de limpeza podem deixar órfãos.
+Não há reconciliação automática nem garantia WORM contra o administrador do filesystem.
+Veja [ADR-004](docs/adr/ADR-004-local-raw-storage.md) para consistência e limites.
+
+Para conferir manualmente, use o ID da versão mostrado nos detalhes:
+
+```sql
+SELECT d.name, v.original_filename, v.size_bytes, v.status, v.source_type,
+       v.storage_namespace, v.storage_key,
+       (SELECT count(*) FROM app.dataset_columns c WHERE c.dataset_version_id = v.id) AS columns
+FROM app.dataset_versions v JOIN app.datasets d ON d.id = v.dataset_id
+WHERE v.id = '<UUID da versão>';
+```
+
+Confirme PROCESSING, CSV, zero colunas e o arquivo em LOCAL_STORAGE_ROOT/storage_key.
+A migração T-004 adiciona original_filename e size_bytes; não altera as migrações anteriores.
+
+### Regressão da UI de upload
+
+Com o servidor de desenvolvimento acima ativo e o contexto local configurado, execute
+`npm run test:upload-ui`. A suíte usa Edge instalado no Windows; em outros sistemas,
+instale Chromium com `npx playwright install chromium`. Para outra porta, exporte
+`UPLOAD_UI_BASE_URL` com a URL local correspondente.
+
+Os testes verificam hidratação, bloqueio de envio sem JavaScript e POST multipart sem
+navegação, além dos estados de sucesso/erro. As respostas do endpoint são interceptadas
+nesses testes de UI: eles não gravam arquivos nem registros no banco. A integração real
+do backend continua em `npm run test:integration`.
+
+`next.config.ts` permite somente o host adicional `127.0.0.1` nos recursos de desenvolvimento
+do Next.js. Sem isso, acessar por esse IP um servidor iniciado com hostname diferente pode
+bloquear o canal HMR/debug e impedir a hidratação. Reinicie `npm run dev` após atualizar
+a configuração. O formulário permanece desabilitado até a hidratação conectar seu handler;
+as variáveis de ambiente e a resolução do workspace continuam no servidor.
 
 ## Verificações
 
@@ -165,9 +280,10 @@ Encerre o servidor com Ctrl+C após a verificação.
 
 ## Estrutura
 
-- `src/app/`: layout, página inicial e CSS.
-- `src/modules/`: placeholders para auth, tenant, dataset, semantic, metrics, query, dashboard e ai.
-- `tests/unit/`: teste mínimo de renderização no servidor.
+- `src/app/`: layout, página inicial, `/data/upload` e endpoint de upload.
+- `src/modules/dataset/`: validação, recebimento e persistência do upload; demais módulos permanecem placeholders.
+- `src/lib/storage/`: contrato RawStorage e implementação local.
+- `tests/unit/`: bootstrap, configuração, streaming, storage e compensação do upload.
 - `src/lib/db/`, `scripts/db/`, `migrations/`: conexão de metadados e migrações administrativas.
 - `tests/integration/`: verificação opt-in com PostgreSQL real.
 - `docs/adr/`: decisões de infraestrutura e migrações.
@@ -183,4 +299,4 @@ Git foi inicializado localmente. CI de provedor fica pendente da escolha da hosp
 - [EPIC-01](tasks/EPIC-01-data-foundation.md)
 - [Prompt T-001](tasks/T-001-prompt.md)
 
-T-004 e demais tickets permanecem pendentes.
+T-004 implementado, aguardando revisão. T-005 e demais tickets permanecem pendentes.
