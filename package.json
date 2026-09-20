@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:upload-ui": "playwright test",
+    "spike:duckdb": "node --env-file-if-exists=.env.local scripts/spikes/duckdb/run.ts",
     "test:integration": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
     "db:check": "node --env-file-if-exists=.env.local --conditions=react-server scripts/db/check.ts",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/db/migrate.ts",
@@ -31,6 +32,7 @@
     "server-only": "0.0.1"
   },
   "devDependencies": {
+    "@duckdb/node-api": "1.5.5-r.5",
     "@playwright/test": "1.63.0",
     "@types/busboy": "1.5.4",
     "@types/node": "22.20.4",
