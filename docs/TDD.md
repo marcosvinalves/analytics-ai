@@ -193,6 +193,57 @@ No CSV parsing, profiling, columns, READY transition, workers or queues are impl
 The local UI is `/data/upload`; its POST endpoint uses a server-configured workspace and resolves
 organization in PostgreSQL. It is disabled in production regardless of its opt-in flag.
 
+<!-- T-005: internal metadata lifecycle, not analytical execution. -->
+
+### T-005 — DatasetVersion lifecycle
+
+Internal functions `markDatasetVersionReady(pool, input)` and
+`markDatasetVersionFailed(pool, input)` use the native `pg.Pool` in autocommit READ COMMITTED.
+Inputs include server-resolved workspaceId and datasetVersionId; the workspace predicate is
+resource scoping, NOT authentication or authorization. No public endpoint is added.
+
+Only PROCESSING → READY/FAILED is allowed. Repeated terminal transitions return ALREADY_TERMINAL,
+even to the same status, without changing timestamps. PROCESSING → PROCESSING is not exposed.
+Each UPDATE includes status = PROCESSING and the workspace relationship. A competing writer
+waits and rechecks this predicate; only one can win. If RETURNING is empty, a separate scoped
+SELECT distinguishes NOT_FOUND from ALREADY_TERMINAL using a fresh snapshot. It never authorizes
+a second UPDATE. Success returns TRANSITIONED with processing fields and timestamps.
+
+READY requires rowCount as bigint in [0, 9223372036854775807] and integer columnCount in
+[1, 2147483647], preserving the existing positive-column READY constraint. Timestamp comes
+from statement_timestamp(); both error fields become NULL. FAILED preserves partial counts,
+sets processed_at, and requires a string errorCode of 1–64 characters matching
+`[A-Z][A-Z0-9_]*`, with no whitespace (including trailing newline), coercion or Error objects.
+Codes such as CSV_PARSE_FAILED and SCHEMA_INFERENCE_FAILED need no lifecycle architecture change.
+The caller must supply a symbolic machine code, never transform exception/SQL/secret content
+into a code: syntactic validation cannot identify a secret that happens to match this alphabet.
+errorMessage is NULL by default or exactly `Não foi possível processar o dataset.`; arbitrary
+messages are rejected at runtime. Argument failures occur before SQL. Database errors are
+replaced by a safe LIFECYCLE_OUTCOME_UNKNOWN error without SQL, stack payload or credentials.
+No automatic retry, cleanup or FAILED transition occurs after an uncertain write outcome.
+
+Lifecycle UPDATEs never change identity/origin fields, created_at or raw storage. updated_at
+is maintained by the existing trigger. These guarantees apply to this API; administrative SQL
+can still bypass terminality or reassign resources. Concurrent deletion can cause the diagnostic
+SELECT to return NOT_FOUND. A PROCESSING result after an unsuccessful conditional update signals
+an external invariant violation and fails conservatively. No new migrations or dependencies.
+
+T-004 remains unchanged: new Dataset + version 1 in PROCESSING. There is no lifecycle call during
+upload. Future same-dataset numbering should lock the Dataset row with FOR UPDATE, then calculate
+and insert the next number in the same short transaction, retaining UNIQUE(dataset_id, version_number).
+Advisory locks need a shared convention; persisted counters add state; unique-conflict retries add
+rollback/retry policy. Nothing is implemented now. Revisit a persistent counter if future deletion
+must never permit number reuse.
+
+PostgreSQL tests use committed isolated fixtures and independent connections. A coordinator holds
+a row lock until both competing UPDATEs are observed waiting in pg_stat_activity, then releases it.
+READY/READY and READY/FAILED must each produce one winner and one terminal result, without mixed fields.
+Use a fresh dedicated TEST_DATABASE_URL; never transition user uploads for demonstration.
+
+T-006 remains an unstarted DuckDB compatibility spike, not a processing integration. Future approved
+processing code can supply counts or safe failure codes to this API; T-005 reads no CSV, creates no
+DatasetColumn, and adds no worker, queue, preview, analytics or automatic finalization.
+
 ## 7. Semantic Layer
 The Semantic Layer maps physical data to business meaning.
 

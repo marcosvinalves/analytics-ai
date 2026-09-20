@@ -99,6 +99,11 @@ Acceptance:
 - processing begins or can be triggered.
 
 ### T-005 — DatasetVersion lifecycle
+Implemented for review: internal conditional finalization API and PostgreSQL concurrency tests.
+T-004 upload remains PROCESSING. No CSV processing or automatic finalization is wired in.
+Terminal states cannot be changed through this API. See TDD for contracts and numbering decision.
+No migration or dependency added; T-006 is not started.
+
 Acceptance:
 - upload starts PROCESSING;
 - successful processing becomes READY;
