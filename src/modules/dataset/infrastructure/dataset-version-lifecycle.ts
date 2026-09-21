@@ -1,4 +1,4 @@
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 import {
   validateReady,
   validateFailed,
@@ -38,7 +38,7 @@ function snapshot(row: Row): LifecycleSnapshot {
   };
 }
 async function classify(
-  pool: Pool,
+  pool: Pool | PoolClient,
   input: VersionScope,
   row?: Row,
 ): Promise<TransitionResult> {
@@ -55,9 +55,9 @@ async function classify(
   throw new Error("Lifecycle invariant violated");
 }
 
-/** Internal metadata operation. Workspace scope is NOT authorization. Use an autocommit READ COMMITTED pool. */
+/** Internal metadata operation, not authorization. With a transactional client, caller owns COMMIT/ROLLBACK; TRANSITIONED is provisional until COMMIT. Use READ COMMITTED. */
 export async function markDatasetVersionReady(
-  pool: Pool,
+  pool: Pool | PoolClient,
   input: ReadyInput,
 ): Promise<TransitionResult> {
   validateReady(input);
@@ -83,7 +83,7 @@ export async function markDatasetVersionReady(
   }
 }
 export async function markDatasetVersionFailed(
-  pool: Pool,
+  pool: Pool | PoolClient,
   input: FailedInput,
 ): Promise<TransitionResult> {
   validateFailed(input);

@@ -29,7 +29,7 @@ function invalid(): never {
     "Argumentos inválidos para finalizar a versão do dataset.",
   );
 }
-function validateScope(input: VersionScope) {
+export function validateVersionScope(input: VersionScope): void {
   if (!input || typeof input !== "object") invalid();
   for (const value of [input.workspaceId, input.datasetVersionId]) {
     if (
@@ -41,7 +41,7 @@ function validateScope(input: VersionScope) {
   }
 }
 export function validateReady(input: ReadyInput): void {
-  validateScope(input);
+  validateVersionScope(input);
   if (
     typeof input.rowCount !== "bigint" ||
     input.rowCount < BigInt(0) ||
@@ -56,7 +56,7 @@ export function validateReady(input: ReadyInput): void {
     invalid();
 }
 export function validateFailed(input: FailedInput): void {
-  validateScope(input);
+  validateVersionScope(input);
   // Machine code only: no coercion, free text, Error objects or exception messages.
   if (
     typeof input.errorCode !== "string" ||

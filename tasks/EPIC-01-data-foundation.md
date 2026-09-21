@@ -102,7 +102,7 @@ Acceptance:
 Implemented for review: internal conditional finalization API and PostgreSQL concurrency tests.
 T-004 upload remains PROCESSING. No CSV processing or automatic finalization is wired in.
 Terminal states cannot be changed through this API. See TDD for contracts and numbering decision.
-No migration or dependency added; T-006 is not started.
+No migration or dependency added during T-005. T-006 subsequently completed with conditions.
 
 Acceptance:
 - upload starts PROCESSING;
@@ -130,6 +130,10 @@ Deliverable:
 Do not make DuckDB a permanent architectural dependency before this ticket is reviewed.
 
 ### T-007 — Persist schema/profile
+
+Implemented for review: explicit local processing, atomic columns/counts/READY, conservative
+operational failures, nullable unknown when no NULL is observed. See TDD and README.
+No migration or new package; DuckDB promoted to runtime. T-008 subsequently implemented for review.
 Persist detected DatasetColumn metadata and basic profile.
 
 Suggested fields:
@@ -141,6 +145,12 @@ Suggested fields:
 - sample metadata when safe
 
 ### T-008 — Data Preview
+Implemented for review: local-only dataset list/detail, persisted metadata/schema, read-only
+DuckDB preview (50 rows), explicit named-cell serialization and safe integrity errors.
+Real dataset verified: 20 rows / 7 columns, READY unchanged. Native compiled Next runtime
+tested through the same reader in a minimal harness; real production routes remain disabled.
+See docs/T-008-data-preview.md. No migrations/new dependencies. T-009 is not started.
+
 Implement the first functional product screen.
 
 Show:

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore, type FormEvent } from "react";
+import Link from "next/link";
 
 type UploadResult = {
   dataset: { id: string; name: string };
@@ -125,9 +126,14 @@ export function UploadForm({
           <p>
             Tamanho: {result.version.sizeBytes.toLocaleString("pt-BR")} bytes
           </p>
+          <p>PROCESSING — aguardando processamento local explícito.</p>
           <p>
-            PROCESSING — aguardando processamento. O processamento ainda não
-            está implementado nesta etapa.
+            <Link
+              prefetch={false}
+              href={`/data/datasets/${result.dataset.id}?version=${result.version.id}`}
+            >
+              Abrir dataset
+            </Link>
           </p>
           <details>
             <summary>Identificadores para desenvolvimento</summary>

@@ -8,6 +8,8 @@ export default function Home() {
       <p>Technical Alpha</p>
       {localUploadContext() && (
         <p>
+          <Link href="/data">Dados</Link>
+          {" · "}
           <Link href="/data/upload">Enviar CSV</Link>
         </p>
       )}

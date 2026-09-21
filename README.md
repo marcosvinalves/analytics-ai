@@ -299,4 +299,80 @@ Git foi inicializado localmente. CI de provedor fica pendente da escolha da hosp
 - [EPIC-01](tasks/EPIC-01-data-foundation.md)
 - [Prompt T-001](tasks/T-001-prompt.md)
 
-T-004 implementado, aguardando revisão. T-005 e demais tickets permanecem pendentes.
+T-001 a T-007 concluídos. T-008 implementado para revisão; T-009 não iniciado.
+
+## Processamento explícito local — T-007
+
+Com Node 22.23.2, PostgreSQL migrado e um CSV recebido pelo T-004:
+
+```sh
+npm run dataset:process -- --version-id <UUID-da-versao>
+```
+
+O comando lê `.env.local`: DATABASE_URL, LOCAL_STORAGE_ROOT, MAX_UPLOAD_BYTES,
+ENABLE_LOCAL_UPLOAD=true e DEV_UPLOAD_WORKSPACE_ID. NODE_ENV deve estar ausente ou ser
+`development`; produção é bloqueada. Esse contexto temporário NÃO é autenticação,
+autorização ou segurança de tenant. O workspace vem somente do servidor; o caminho vem
+dos metadados existentes, nunca de um argumento de arquivo. O upload continua PROCESSING.
+
+O processamento explícito lê o raw sem alterá-lo e persiste DatasetColumns, contagens e READY
+na mesma transação curta. Não cria preview, endpoint ou processamento automático.
+Estados finais retornam ALREADY_TERMINAL sem alterações. Falhas determinísticas de CSV/raw
+podem marcar FAILED; indisponibilidade de infraestrutura mantém PROCESSING quando confirmado.
+PROCESSING_OUTCOME_UNKNOWN exige consultar o estado antes de tentar novamente: o commit
+pode ter sido efetivado. Não há retry automático nem limpeza de arquivos.
+
+CSV: UTF-8, vírgula, cabeçalho, aspas duplas; inferência completa e estrita. Nomes duplicados/vazios
+são normalizados pelo DuckDB. Tipos físicos são preservados, inclusive DOUBLE; não representam
+tipos monetários/semânticos. nullable=true se há NULL; caso contrário NULL (desconhecido).
+A inferência é específica desta versão do raw. profile_metadata permanece NULL.
+
+`npm run test:integration` requer TEST_DATABASE_URL para um banco de testes vazio e separado.
+Inclui fixtures reais, rollback, visibilidade, concorrência e perda da confirmação de COMMIT.
+O binding DuckDB é runtime apenas do comando; build Next.js aprovado não comprova bundling
+em rotas nem compatibilidade com deploy futuro. Nenhuma migration nova é necessária.
+
+## Data Preview local — T-008
+
+Com o mesmo contexto local do upload e `npm run dev`, abra `/data`. A lista mostra até
+50 datasets recentes do workspace configurado no servidor. Clique no nome para abrir
+`/data/datasets/<datasetId>`; `?version=<datasetVersionId>` seleciona uma versão específica.
+Sem esse parâmetro, a versão de maior número é selecionada, mesmo se ainda estiver PROCESSING.
+
+READY mostra metadados, schema persistido e até 50 linhas do raw. PROCESSING e FAILED não
+abrem DuckDB. Incompatibilidade raw/schema mostra erro seguro de preview e mantém READY.
+O preview não processa, reinfere, corrige, persiste linhas ou altera o lifecycle.
+Cada célula transporta `{ column, value }`, com valor textual ou NULL. DECIMAL/BIGINT não
+passam por Number; DOUBLE permanece aproximado. A tabela não fornece filtros ou ordenação.
+
+O contexto continua exclusivo de desenvolvimento e não implementa autenticação/segurança
+de tenant. As rotas respondem 404 em produção, mesmo com as flags locais configuradas.
+O preview usa Suspense após verificar existência/escopo, preservando HTTP 404 real.
+Sem JavaScript, os metadados/schema continuam visíveis; a substituição do preview em streaming
+requer JavaScript. Não há polling nem retry automático.
+
+Testes adicionais:
+
+```sh
+# Com npm run dev ativo e uma versão READY no workspace de .env.local:
+npm run test:preview-ui
+npm run test:upload-ui
+
+# Sem servidor nas portas 3010/3011:
+npm run build
+npm run test:preview-runtime
+```
+
+O teste de UI lê o dataset real sem criar fixtures no banco da aplicação e compara snapshots
+das cinco tabelas de domínio e SHA-256 do raw antes/depois. Os testes de integração usam
+somente um TEST_DATABASE_URL vazio/separado, como nas etapas anteriores.
+
+O teste runtime primeiro inicia o artefato real e verifica o bloqueio de produção. Depois
+gera apenas uma rota/configuração temporárias em `.local`, importa a MESMA implementação
+`readDatasetPreview`, compila/inicia Next e executa uma consulta real. Não copia a aplicação,
+não conecta ao PostgreSQL e remove seu harness ao terminar com sucesso.
+
+`serverExternalPackages: ["@duckdb/node-api"]` foi necessário: sem isso, o build tentou
+resolver bindings nativos de outras plataformas. O pacote e seu binário da plataforma devem
+acompanhar o deploy. O runtime compilado foi validado localmente; outros alvos de deploy
+continuam não verificados. Consulte [o relatório T-008](docs/T-008-data-preview.md).

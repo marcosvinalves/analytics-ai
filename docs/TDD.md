@@ -198,7 +198,9 @@ organization in PostgreSQL. It is disabled in production regardless of its opt-i
 ### T-005 — DatasetVersion lifecycle
 
 Internal functions `markDatasetVersionReady(pool, input)` and
-`markDatasetVersionFailed(pool, input)` use the native `pg.Pool` in autocommit READ COMMITTED.
+`markDatasetVersionFailed(pool, input)` accept native `pg.Pool` (autocommit) or `pg.PoolClient` (caller-owned transaction).
+With a transactional client, TRANSITIONED is provisional until the caller commits; these functions
+never BEGIN/COMMIT/ROLLBACK. T-007 uses READ COMMITTED.
 Inputs include server-resolved workspaceId and datasetVersionId; the workspace predicate is
 resource scoping, NOT authentication or authorization. No public endpoint is added.
 
@@ -240,9 +242,80 @@ a row lock until both competing UPDATEs are observed waiting in pg_stat_activity
 READY/READY and READY/FAILED must each produce one winner and one terminal result, without mixed fields.
 Use a fresh dedicated TEST_DATABASE_URL; never transition user uploads for demonstration.
 
-T-006 remains an unstarted DuckDB compatibility spike, not a processing integration. Future approved
-processing code can supply counts or safe failure codes to this API; T-005 reads no CSV, creates no
-DatasetColumn, and adds no worker, queue, preview, analytics or automatic finalization.
+T-006 completed with ACCEPT WITH CONDITIONS; see docs/spikes/SP-01-duckdb.md.
+T-007 adds explicit local processing, without wiring it into upload or Next.js routes.
+
+### T-007 — Persist schema/profile
+
+`processDatasetVersion(pool, {workspaceId, datasetVersionId})` returns TRANSITIONED,
+ALREADY_TERMINAL, NOT_FOUND, or OPERATIONAL_FAILURE with a safe code/message. Invalid scope
+throws a safe TypeError before IO. Scope is server-controlled, not authorization.
+The local command is documented in README; no endpoint, UI, worker or automatic retry is added.
+
+Read the immutable local raw object outside a PostgreSQL transaction. Reject symlinks and
+invalid storage keys, check size and UTF-8, and compare SHA-256 before/after inspection.
+DuckDB reads strict comma-delimited UTF-8 CSV with header, double-quote escaping, full-file
+inference and empty-field NULL semantics. Empty raw is invalid; header-only CSV is accepted.
+Duplicate/empty headers use DuckDB's normalized physical names. Persist canonical DuckDB
+type strings without financial or semantic reinterpretation (DOUBLE remains DOUBLE).
+Counts use bigint. Only row count, column count, names, types, ordinal and null count are stored;
+profile_metadata remains NULL and null_ratio is derived, never persisted.
+
+ADR-010 defines nullable=NULL as unknown. CSV cannot prove a structural NOT NULL constraint:
+null_count > 0 produces true; zero produces NULL, never false. No schema change is needed.
+
+A short transaction locks the scoped DatasetVersion and its Dataset relationship, rechecks
+identity/status, requires no existing columns, inserts the complete schema, and invokes T-005
+READY on the same PoolClient before COMMIT. Rollback leaves PROCESSING with no partial columns.
+Competing terminal transitions have a single winner. Existing terminal versions are unchanged.
+No raw deletion or mutation is performed.
+
+Only definitive local raw absence/identity failure (RAW_OBJECT_UNAVAILABLE) or validated
+invalid CSV/UTF-8/empty data (CSV_READ_FAILED) may invoke FAILED, with the fixed safe lifecycle
+message. Missing storage root, permissions, configured size limit, database/runtime failures,
+OOM and unknown parser errors are operational: do not mark FAILED. PROCESSING is preserved
+when rollback is confirmed; uncertain COMMIT may already have produced READY and returns
+PROCESSING_OUTCOME_UNKNOWN. Inspect state before an explicit new attempt. No automatic retry.
+Unknown DuckDB errors fail conservatively rather than exposing internal exception text.
+
+DuckDB is in-memory, with two threads, 256 MB engine memory, no disk spill or extension auto-load.
+These settings are not OS memory/process isolation or an end-to-end timeout. The private local
+storage directory must be operator-controlled; fingerprints are not protection against a hostile
+OS user concurrently replacing files. Local missing-file classification assumes a healthy root.
+The native binding is promoted to runtime for the CLI. Passing the Next.js build does not verify
+native bundling inside a future Next.js route or deployment target. No migrations or new packages.
+
+
+### T-008 — Read-only Data Preview
+
+Local-only `/data` lists at most 50 recent datasets in the server-configured workspace.
+`/data/datasets/[datasetId]?version=<uuid>` selects an explicitly scoped version, or the highest
+version_number when omitted. IDs select resources; they do not authorize access. The existing
+development-only context remains disabled in production. No new HTTP API or auth/RLS is added.
+
+Metadata and ordered DatasetColumns come from PostgreSQL in a short REPEATABLE READ READ ONLY
+transaction. It ends before raw inspection. Only READY opens DuckDB. PROCESSING/FAILED do not
+read the raw. The page checks scope/existence before its Suspense boundary so missing resources
+produce HTTP 404 rather than a streamed 200. Metadata/schema remain visible during preview loading.
+
+PreviewCell is `{column: string, value: string | null}`; PreviewRow is PreviewCell[].
+This is a Data Preview DTO, not the future Query Engine contract. BIGINT/DECIMAL and temporal
+values are converted to VARCHAR in DuckDB, never through Number or JS Date. DOUBLE remains
+approximate; NULL remains null; TIMESTAMPTZ uses UTC, while TIMESTAMP has no invented timezone.
+
+The fixed CSV reader reuses T-007 dialect options with auto_detect=false and persisted names/types.
+A fixed VARCHAR header read checks normalized names without schema inference; allowed type syntax
+and escaped SQL identifiers/literals protect the generated projection. The path is server-resolved,
+bound as a value, and validated for containment/symlinks/size. The query returns at most 50 rows.
+SHA-256 before/after detects changes during reading, not historical identity (no persisted checksum).
+Observed incompatible raw/schema returns safe PREVIEW_READ_FAILED; READY and DatasetColumns remain
+untouched. No lifecycle calls, corrective processing, row persistence, polling or retry are added.
+
+Native DuckDB is externalized only after a reproduced build failure resolving foreign-platform
+bindings. The real production routes remain blocked. A minimal generated Next harness imports the
+same permanent reader and proves native loading and query execution in compiled Node runtime on
+Windows x64. This does not certify other deployment environments, standalone tracing or load.
+See docs/T-008-data-preview.md for checks, limitations and files. No migrations or new dependencies.
 
 ## 7. Semantic Layer
 The Semantic Layer maps physical data to business meaning.
