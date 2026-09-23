@@ -1,6 +1,6 @@
 # EPIC-01 — Data Foundation
 
-**Status:** READY  
+**Status:** IMPLEMENTED — AWAITING T-009 REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -149,7 +149,7 @@ Implemented for review: local-only dataset list/detail, persisted metadata/schem
 DuckDB preview (50 rows), explicit named-cell serialization and safe integrity errors.
 Real dataset verified: 20 rows / 7 columns, READY unchanged. Native compiled Next runtime
 tested through the same reader in a minimal harness; real production routes remain disabled.
-See docs/T-008-data-preview.md. No migrations/new dependencies. T-009 is not started.
+See docs/T-008-data-preview.md. No migrations/new dependencies. T-009 was subsequently implemented for review.
 
 Implement the first functional product screen.
 
@@ -168,6 +168,12 @@ States:
 - FAILED
 
 ### T-009 — Ground-truth aggregation
+Implemented for review: explicit local-only exact DECIMAL aggregation for the fixed EPIC-01
+calculation, with versioned synthetic ground truth and independent BigInt-cent oracle.
+The real READY dataset returned 2059.61 and matched the SP-01 Python Decimal reference.
+No database/raw writes, migrations, dependencies, UI, Query Engine or Semantic Layer.
+See docs/T-009-ground-truth-aggregation.md.
+
 Add a fixture with known expected values.
 
 At minimum verify:
@@ -218,3 +224,6 @@ Do not begin EPIC-02 until:
 - Data Preview works;
 - SP-01 is reviewed;
 - ground-truth aggregation passes.
+
+Implementation evidence for all four gates is recorded in the T-009 report. EPIC-01 remains
+awaiting review; this does not approve production deployment or begin EPIC-02.

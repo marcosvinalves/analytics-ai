@@ -102,3 +102,73 @@ export async function listDatasets(
     throw new Error("DATASET_METADATA_UNAVAILABLE");
   }
 }
+
+/** T-009 selection by server-controlled workspace/version. Not authorization. */
+export async function readGroundTruthMetadata(
+  pool: Pool,
+  scope: { workspaceId: string; datasetVersionId: string },
+): Promise<DatasetMetadata | null> {
+  if (!validId(scope.workspaceId) || !validId(scope.datasetVersionId))
+    return null;
+  const client = await pool.connect().catch(() => {
+    throw new Error("DATASET_METADATA_UNAVAILABLE");
+  });
+  let discard = false;
+  try {
+    await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    const result = await client.query(
+      `SELECT d.id AS dataset_id, d.name, d.description, v.*
+       FROM app.dataset_versions v JOIN app.datasets d ON d.id=v.dataset_id
+       WHERE d.workspace_id=$1 AND v.id=$2`,
+      [scope.workspaceId, scope.datasetVersionId],
+    );
+    const version = result.rows[0];
+    if (!version) {
+      await client.query("COMMIT");
+      return null;
+    }
+    const columns = await client.query(
+      `SELECT physical_name AS "physicalName", inferred_type AS "inferredType",
+       ordinal_position AS "ordinalPosition", nullable, null_count::text AS "nullCount"
+       FROM app.dataset_columns WHERE dataset_version_id=$1 ORDER BY ordinal_position`,
+      [version.id],
+    );
+    await client.query("COMMIT");
+    return {
+      detail: {
+        dataset: {
+          id: version.dataset_id,
+          name: version.name,
+          description: version.description,
+        },
+        version: {
+          id: version.id,
+          versionNumber: version.version_number,
+          status: version.status,
+          rowCount: version.row_count,
+          columnCount: version.column_count,
+          originalFilename: version.original_filename,
+          sizeBytes: version.size_bytes,
+          processedAt: version.processed_at?.toISOString() ?? null,
+        },
+        columns: columns.rows,
+        preview: { state: "UNAVAILABLE" },
+      },
+      raw: {
+        namespace: version.storage_namespace,
+        key: version.storage_key,
+        sizeBytes: version.size_bytes,
+        sourceType: version.source_type,
+      },
+    };
+  } catch {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      discard = true;
+    }
+    throw new Error("DATASET_METADATA_UNAVAILABLE");
+  } finally {
+    client.release(discard);
+  }
+}

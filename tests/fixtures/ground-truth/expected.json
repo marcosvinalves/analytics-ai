@@ -1,0 +1,7 @@
+{
+  "expectedCents": "1730",
+  "expectedValue": "17.30",
+  "rowCount": "7",
+  "contributingRows": "5",
+  "policy": "integer quantity multiplied by price with at most two decimal places; NULL pair is excluded"
+}

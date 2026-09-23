@@ -21,6 +21,7 @@
     "test:preview-runtime": "node scripts/tests/preview-runtime.mjs",
     "spike:duckdb": "node --env-file-if-exists=.env.local scripts/spikes/duckdb/run.ts",
     "dataset:process": "node --env-file-if-exists=.env.local --conditions=react-server scripts/dataset/process.ts",
+    "dataset:ground-truth": "node --env-file-if-exists=.env.local --conditions=react-server scripts/dataset/ground-truth.ts",
     "test:integration": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
     "db:check": "node --env-file-if-exists=.env.local --conditions=react-server scripts/db/check.ts",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/db/migrate.ts",

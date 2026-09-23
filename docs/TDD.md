@@ -317,6 +317,35 @@ same permanent reader and proves native loading and query execution in compiled 
 Windows x64. This does not certify other deployment environments, standalone tracing or load.
 See docs/T-008-data-preview.md for checks, limitations and files. No migrations or new dependencies.
 
+### T-009 — Deterministic ground-truth aggregation
+
+The explicit local command calls `runGroundTruthAggregation(pool, {workspaceId,
+datasetVersionId})`. It is specific to `SUM(quantidade * preco_unitario)`: no user SQL,
+expression, generic engine/AST, endpoint or UI. The server resolves workspace, metadata and raw.
+Only READY is read; PROCESSING/FAILED return NOT_READY and missing/wrong scope returns NOT_FOUND.
+
+Metadata uses a short REPEATABLE READ READ ONLY transaction that ends before DuckDB. The raw path,
+UTF-8, size, fingerprint, normalized header and full persisted physical schema are validated with
+the shared T-007/T-008 concrete infrastructure. Required persisted columns must exist and be numeric.
+No schema inference, metadata correction, lifecycle call, result persistence or automatic retry.
+
+Original CSV text is read separately. Quantity accepts signed integer text fitting DECIMAL(18,0).
+Unit price accepts signed plain decimal text with at most two fractional digits fitting
+DECIMAL(18,2). Scientific notation, excess scale, whitespace, NaN/Infinity and fractional quantity
+are errors; multiplication/sum overflow is an explicit error. This is a rule for this experiment,
+not a semantic MONEY inference from a column name.
+
+DuckDB 1.5.5 `typeof()` was verified at runtime: quantity DECIMAL(18,0), unit price DECIMAL(18,2),
+product DECIMAL(18,2), SUM DECIMAL(38,2). No numeric cast is added after SUM to manufacture that
+type. The exact DECIMAL is cast only to VARCHAR at the serialization boundary. The operation checks
+all four observed types and returns value as string/null plus rowCount/contributingRows strings.
+
+NULL in either operand excludes that row. No contributing rows returns null; an actual zero returns
+`"0.00"`. The versioned synthetic fixture expects `"17.30"`, independently derived with Node
+BigInt cents. The real 20-row dataset returned `"2059.61"`, matching the pre-existing SP-01 Python
+Decimal oracle. Five-table snapshots and raw hashes prove no writes. See
+docs/T-009-ground-truth-aggregation.md. No migration or dependency.
+
 ## 7. Semantic Layer
 The Semantic Layer maps physical data to business meaning.
 

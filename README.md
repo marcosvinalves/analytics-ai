@@ -299,7 +299,7 @@ Git foi inicializado localmente. CI de provedor fica pendente da escolha da hosp
 - [EPIC-01](tasks/EPIC-01-data-foundation.md)
 - [Prompt T-001](tasks/T-001-prompt.md)
 
-T-001 a T-007 concluídos. T-008 implementado para revisão; T-009 não iniciado.
+T-001 a T-008 concluídos. T-009 implementado para revisão; nenhum próximo ticket iniciado.
 
 ## Processamento explícito local — T-007
 
@@ -376,3 +376,27 @@ não conecta ao PostgreSQL e remove seu harness ao terminar com sucesso.
 resolver bindings nativos de outras plataformas. O pacote e seu binário da plataforma devem
 acompanhar o deploy. O runtime compilado foi validado localmente; outros alvos de deploy
 continuam não verificados. Consulte [o relatório T-008](docs/T-008-data-preview.md).
+
+## Agregação ground truth — T-009
+
+Com uma DatasetVersion READY do fluxo local, execute:
+
+```sh
+npm run dataset:ground-truth -- --version-id <UUID-da-versao>
+```
+
+O comando usa o workspace configurado somente no servidor e permanece bloqueado em produção.
+Ele conhece apenas o cálculo de encerramento do EPIC-01:
+`SUM(quantidade * preco_unitario)`. Não recebe SQL, expressão, path ou storage key e não é um
+Query Engine, Semantic Query ou Metric. Não há endpoint/UI, persistência de resultado ou alteração
+de lifecycle.
+
+Os operandos são relidos do texto original como DECIMAL(18,0) e DECIMAL(18,2), sem converter
+o DOUBLE persistido de volta para decimal. DuckDB 1.5.5 produziu DECIMAL(18,2) para o produto e
+DECIMAL(38,2) para SUM. O total atravessa a fronteira como string, sem Number ou arredondamento.
+NULL em qualquer operando exclui a linha; nenhuma contribuição retorna null, enquanto soma zero
+retorna `"0.00"`. Entradas fora do contrato ou overflow falham com mensagem segura.
+
+No dataset real, o resultado foi `"2059.61"` para 20 de 20 linhas, igual ao Python Decimal
+independente do SP-01. Snapshots das cinco tabelas e SHA-256 do raw ficaram inalterados.
+Consulte [o relatório T-009](docs/T-009-ground-truth-aggregation.md).

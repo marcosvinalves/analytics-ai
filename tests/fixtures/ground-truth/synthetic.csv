@@ -1,0 +1,8 @@
+quantidade,preco_unitario,observacao
+1,0.10,decimal pequeno A
+1,0.20,decimal pequeno B
+-2,1.50,negativo
+0,999.99,zero
+,1.00,quantidade NULL
+5,,preco NULL
+2,10.00,positivo
