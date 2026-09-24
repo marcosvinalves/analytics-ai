@@ -433,7 +433,16 @@ test("timestamptz preserva o instante entre fusos", async () => {
 
 test("catálogo contém somente índices aprovados, FKs RESTRICT e triggers de timestamps", async () => {
   const indexes = await client.query(
-    "SELECT indexname FROM pg_indexes WHERE schemaname = 'app' ORDER BY indexname",
+    "SELECT indexname FROM pg_indexes WHERE schemaname = 'app' AND tablename = ANY($1::text[]) ORDER BY indexname",
+    [
+      [
+        "organizations",
+        "workspaces",
+        "datasets",
+        "dataset_versions",
+        "dataset_columns",
+      ],
+    ],
   );
   expect(indexes.rows.map((row) => row.indexname)).toEqual([
     "dataset_columns_name_unique",
@@ -449,18 +458,44 @@ test("catálogo contém somente índices aprovados, FKs RESTRICT e triggers de t
     "workspaces_pkey",
   ]);
   const fks = await client.query(
-    "SELECT confdeltype, confupdtype FROM pg_constraint WHERE connamespace = 'app'::regnamespace AND contype = 'f'",
+    "SELECT confdeltype, confupdtype FROM pg_constraint WHERE connamespace = 'app'::regnamespace AND contype = 'f' AND conrelid = ANY($1::regclass[])",
+    [
+      [
+        "app.workspaces",
+        "app.datasets",
+        "app.dataset_versions",
+        "app.dataset_columns",
+      ],
+    ],
   );
   expect(fks.rows).toHaveLength(4);
   for (const row of fks.rows)
     expect(row).toEqual({ confdeltype: "r", confupdtype: "r" });
   const triggers = await client.query(
-    "SELECT t.tgname, p.proname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_proc p ON p.oid = t.tgfoid WHERE c.relnamespace = 'app'::regnamespace AND NOT t.tgisinternal",
+    "SELECT t.tgname, p.proname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_proc p ON p.oid = t.tgfoid WHERE c.relnamespace = 'app'::regnamespace AND c.relname = ANY($1::text[]) AND NOT t.tgisinternal",
+    [
+      [
+        "organizations",
+        "workspaces",
+        "datasets",
+        "dataset_versions",
+        "dataset_columns",
+      ],
+    ],
   );
   expect(triggers.rows).toHaveLength(5);
   for (const row of triggers.rows) expect(row.proname).toBe("set_updated_at");
   const columns = await client.query(
-    "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'app'",
+    "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'app' AND table_name = ANY($1::text[])",
+    [
+      [
+        "organizations",
+        "workspaces",
+        "datasets",
+        "dataset_versions",
+        "dataset_columns",
+      ],
+    ],
   );
   expect(
     columns.rows.filter((row) =>

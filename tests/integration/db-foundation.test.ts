@@ -7,10 +7,12 @@ const domainTables = [
   "dataset_versions",
   "datasets",
   "organizations",
+  "semantic_model_revisions",
+  "semantic_models",
   "workspaces",
 ];
 
-test("banco limpo: conectividade, cinco tabelas e reaplicação sem mudanças", async () => {
+test("banco limpo: conectividade, sete tabelas e reaplicação sem mudanças", async () => {
   const client = await connectTestDatabase();
   try {
     expect((await runDatabaseCommand("check")).stdout).toContain(
@@ -19,7 +21,7 @@ test("banco limpo: conectividade, cinco tabelas e reaplicação sem mudanças", 
     const before = await client.query(
       "SELECT * FROM migration_metadata.history ORDER BY id",
     );
-    expect(before.rowCount).toBe(3);
+    expect(before.rowCount).toBe(4);
     expect((await runDatabaseCommand("migrate")).stdout).toContain(
       "0 migração(ões)",
     );
@@ -39,7 +41,7 @@ test("banco limpo: conectividade, cinco tabelas e reaplicação sem mudanças", 
   }
 });
 
-test("rollback explícito de T-003 e upgrade da fundação T-002 preservam o histórico inicial", async () => {
+test("rollback explícito até T-002 e reaplicação preservam o histórico inicial", async () => {
   const client = await connectTestDatabase();
   try {
     const baseline = await client.query(
@@ -50,7 +52,7 @@ test("rollback explícito de T-003 e upgrade da fundação T-002 preservam o his
       dbClient: client,
       dir: "migrations",
       direction: "down",
-      count: 2,
+      count: 3,
       migrationsSchema: "migration_metadata",
       migrationsTable: "history",
       singleTransaction: true,
@@ -69,7 +71,7 @@ test("rollback explícito de T-003 e upgrade da fundação T-002 preservam o his
       (await client.query("SELECT * FROM migration_metadata.history")).rows,
     ).toEqual(baseline.rows);
     expect((await runDatabaseCommand("migrate")).stdout).toContain(
-      "2 migração(ões)",
+      "3 migração(ões)",
     );
     expect(
       (

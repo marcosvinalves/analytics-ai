@@ -74,6 +74,26 @@ vocabulary belongs to the application, not a database enum or connector-specific
 The updated_at triggers maintain timestamps only, not authorization, versioning or immutability.
 No authorization, RLS, upload, storage adapter or analytical engine is implemented in T-003.
 
+### ADR-011 — SemanticModel and revisions
+
+Accepted for EPIC-02/T-010. See [ADR-011](adr/ADR-011-semantic-model-revisions.md).
+
+SemanticModel is the stable semantic identity of one Dataset during the Technical Alpha.
+SemanticModelRevision binds an explicit DRAFT to one READY DatasetVersion. The revision does not
+duplicate dataset_id; the internal writer validates the shared Dataset inside its transaction.
+T-010 creates DRAFT only. Publication, archival and immutable published content belong to T-013.
+published_at is the original publication instant and must be preserved by a future
+PUBLISHED-to-ARCHIVED transition.
+
+Creation payload equality is only createSemanticModelDraft idempotency semantics. It does not make
+drafts immutable; drafts remain conceptually editable in subsequent tickets.
+
+A future SemanticField DECIMAL declaration defines semantic intent, precision and scale, but not
+the physical conversion strategy by itself. Casting an already materialized DOUBLE to DECIMAL does
+not guarantee recovery of the original decimal. T-009 obtained exact precision by reading the
+original CSV text before the decimal cast. The EPIC-03 compiler must handle this distinction
+explicitly; EPIC-02 does not compile or execute it.
+
 ## 3. High-level architecture
 
 ```text
