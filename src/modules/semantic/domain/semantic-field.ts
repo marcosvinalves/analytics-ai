@@ -3,6 +3,7 @@ import {
   type PhysicalType,
 } from "../../dataset/domain/physical-type.ts";
 import type { SemanticRevisionStatus } from "./semantic-model.ts";
+import type { InvalidExpression } from "./metric-expression.ts";
 
 export type SemanticType =
   | { kind: "STRING" }
@@ -109,11 +110,17 @@ export type UpdateSemanticFieldResult =
       outcome: "UPDATED" | "UNCHANGED";
       field: SemanticFieldSnapshot;
     }
+  | {
+      outcome: "FIELD_CHANGE_INVALIDATES_METRIC";
+      metricKey: string;
+      error: InvalidExpression;
+    }
   | FieldMutationFailure;
 
 export type RemoveSemanticFieldResult =
   | { outcome: "REMOVED" }
   | { outcome: "NOT_FOUND" }
+  | { outcome: "FIELD_IN_USE"; metricKey: string }
   | {
       outcome: "REVISION_NOT_EDITABLE";
       status: Exclude<SemanticRevisionStatus, "DRAFT">;

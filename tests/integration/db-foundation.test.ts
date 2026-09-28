@@ -6,6 +6,8 @@ const domainTables = [
   "dataset_columns",
   "dataset_versions",
   "datasets",
+  "metric_field_references",
+  "metrics",
   "organizations",
   "semantic_fields",
   "semantic_model_revisions",
@@ -13,7 +15,7 @@ const domainTables = [
   "workspaces",
 ];
 
-test("banco limpo: conectividade, oito tabelas e reaplicação sem mudanças", async () => {
+test("banco limpo: conectividade, dez tabelas e reaplicação sem mudanças", async () => {
   const client = await connectTestDatabase();
   try {
     expect((await runDatabaseCommand("check")).stdout).toContain(
@@ -22,7 +24,7 @@ test("banco limpo: conectividade, oito tabelas e reaplicação sem mudanças", a
     const before = await client.query(
       "SELECT * FROM migration_metadata.history ORDER BY id",
     );
-    expect(before.rowCount).toBe(5);
+    expect(before.rowCount).toBe(6);
     expect((await runDatabaseCommand("migrate")).stdout).toContain(
       "0 migração(ões)",
     );
@@ -53,7 +55,7 @@ test("rollback explícito até T-002 e reaplicação preservam o histórico inic
       dbClient: client,
       dir: "migrations",
       direction: "down",
-      count: 4,
+      count: 5,
       migrationsSchema: "migration_metadata",
       migrationsTable: "history",
       singleTransaction: true,
@@ -72,7 +74,7 @@ test("rollback explícito até T-002 e reaplicação preservam o histórico inic
       (await client.query("SELECT * FROM migration_metadata.history")).rows,
     ).toEqual(baseline.rows);
     expect((await runDatabaseCommand("migrate")).stdout).toContain(
-      "4 migração(ões)",
+      "5 migração(ões)",
     );
     expect(
       (

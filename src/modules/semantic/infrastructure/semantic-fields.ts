@@ -20,6 +20,7 @@ import {
   type UpdateSemanticFieldInput,
   type UpdateSemanticFieldResult,
 } from "../domain/semantic-field.ts";
+import { validateMetricExpression } from "../domain/metric-expression.ts";
 import type { SemanticRevisionStatus } from "../domain/semantic-model.ts";
 
 type RevisionRow = {
@@ -53,6 +54,11 @@ type FieldRow = {
   physical_name: string;
   inferred_type: string;
   ordinal_position: number;
+};
+
+type ReferencingMetricRow = {
+  metric_key: string;
+  expression: unknown;
 };
 
 const fieldColumns = `f.id, f.field_key, f.semantic_model_revision_id,
@@ -146,6 +152,53 @@ async function loadField(
       [fieldId, revisionId],
     )
   ).rows[0];
+}
+
+async function invalidMetricAfterTypeChange(
+  client: PoolClient,
+  revisionId: string,
+  fieldKey: string,
+  semanticType: SemanticType,
+) {
+  const fieldRows = (
+    await client.query<{
+      field_key: string;
+      semantic_type: string;
+      decimal_precision: number | null;
+      decimal_scale: number | null;
+    }>(
+      `SELECT field_key, semantic_type, decimal_precision, decimal_scale
+       FROM app.semantic_fields WHERE semantic_model_revision_id = $1`,
+      [revisionId],
+    )
+  ).rows;
+  const fields = new Map(
+    fieldRows.map((row) => [
+      row.field_key,
+      semanticTypeFromStorage(
+        row.semantic_type,
+        row.decimal_precision,
+        row.decimal_scale,
+      ),
+    ]),
+  );
+  fields.set(fieldKey, semanticType);
+  const metrics = (
+    await client.query<ReferencingMetricRow>(
+      `SELECT m.metric_key, m.expression
+       FROM app.metric_field_references r
+       JOIN app.metrics m ON m.id = r.metric_id
+       WHERE r.semantic_model_revision_id = $1 AND r.field_key = $2
+       ORDER BY m.metric_key`,
+      [revisionId, fieldKey],
+    )
+  ).rows;
+  for (const metric of metrics) {
+    const validated = validateMetricExpression(metric.expression, fields);
+    if (!validated.valid)
+      return { metricKey: metric.metric_key, error: validated.error };
+  }
+  return undefined;
 }
 
 async function finish<T>(client: PoolClient, result: T): Promise<T> {
@@ -446,6 +499,19 @@ export async function updateSemanticField(
       mappingChanged ? input.changes.acceptExplicitConversion : true,
     );
     if (incompatible) return await finish(client, incompatible);
+    if (!sameSemanticType(desired.semanticType, current.semanticType)) {
+      const invalidMetric = await invalidMetricAfterTypeChange(
+        client,
+        revision.id,
+        current.fieldKey,
+        desired.semanticType,
+      );
+      if (invalidMetric)
+        return await finish(client, {
+          outcome: "FIELD_CHANGE_INVALIDATES_METRIC",
+          ...invalidMetric,
+        });
+    }
     const conflict = await findConflict(
       client,
       revision.id,
@@ -548,6 +614,23 @@ export async function removeSemanticField(
     if (!revision) return await finish(client, { outcome: "NOT_FOUND" });
     const notEditable = editabilityFailure(revision.status);
     if (notEditable) return await finish(client, notEditable);
+    const field = await loadField(client, revision.id, input.semanticFieldId);
+    if (!field) return await finish(client, { outcome: "NOT_FOUND" });
+    const metric = (
+      await client.query<{ metric_key: string }>(
+        `SELECT m.metric_key
+         FROM app.metric_field_references r
+         JOIN app.metrics m ON m.id = r.metric_id
+         WHERE r.semantic_model_revision_id = $1 AND r.field_key = $2
+         ORDER BY m.metric_key LIMIT 1`,
+        [revision.id, field.field_key],
+      )
+    ).rows[0];
+    if (metric)
+      return await finish(client, {
+        outcome: "FIELD_IN_USE",
+        metricKey: metric.metric_key,
+      });
     const deleted = await client.query(
       `DELETE FROM app.semantic_fields
       WHERE id = $1 AND semantic_model_revision_id = $2`,

@@ -112,6 +112,20 @@ INVALID; no implicit midnight policy exists. T-011 performs no DuckDB query or c
 Only DRAFT fields can be created, updated or removed. Publication and complete immutable-content
 enforcement remain T-013 work.
 
+### ADR-013 — Metrics and Expression AST
+
+Accepted for EPIC-02/T-012. See [ADR-013](adr/ADR-013-metrics-expression-ast.md).
+
+Metric expressions use a closed, engine-independent AST v1 stored as JSONB. Field references use
+field_key and are projected into a minimal relational reference table so PostgreSQL can enforce
+same-revision lineage and block orphan removal. Result types are derived, not persisted. Metrics
+never contain SQL or compiled analytical expressions.
+
+INTEGER combined with DECIMAL promotes to DECIMAL(38, scale) without treating INTEGER as
+DECIMAL(38,0) or reducing scale. Overflow outside that explicit envelope belongs to future
+execution. COUNT and COUNT_DISTINCT return semantic INTEGER cardinality; this does not assert the
+same physical representation as an INTEGER SemanticField. T-012 performs no DuckDB execution.
+
 ## 3. High-level architecture
 
 ```text

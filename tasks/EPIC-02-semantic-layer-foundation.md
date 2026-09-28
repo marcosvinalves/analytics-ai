@@ -1,6 +1,6 @@
 # EPIC-02 — Semantic Layer Foundation
 
-**Status:** T-011 IMPLEMENTED — AWAITING REVIEW
+**Status:** T-012 IMPLEMENTED — AWAITING REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -32,6 +32,13 @@ Implementar SemanticField em revisões DRAFT, com field_key lógico, vínculo f�
 compostas, type system mínimo e matriz SAFE/EXPLICIT/INVALID. TypeCompatibility descreve
 admissibilidade de intenção, não disponibilidade de conversão analítica. DOUBLE → DECIMAL é
 EXPLICIT; DATE → DATETIME é INVALID. Não há execução DuckDB, metrics, AST ou publicação.
+
+## T-012 — Metrics & Expression AST
+
+Implementar Metric e um AST v1 fechado, declarativo e independente do engine. Expressions usam
+field_key e persistem atomicamente uma projeção relacional mínima para integridade. A raiz é uma
+agregação; não há SQL, compilação ou execução DuckDB. Result type é derivado. Alterações em fields
+não podem deixar Metrics inválidas ou órfãs. Publicação permanece T-013.
 
 ## Precisão
 
