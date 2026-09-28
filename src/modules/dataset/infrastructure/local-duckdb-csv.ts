@@ -1,26 +1,13 @@
 import type { DuckDBConnection } from "@duckdb/node-api";
 import type { DatasetMetadata } from "../domain/dataset-detail.ts";
+import { supportedPhysicalType } from "../domain/physical-type.ts";
 import { CSV_OPTIONS } from "./csv-options.ts";
+
+export { supportedPhysicalType } from "../domain/physical-type.ts";
 
 export const sqlIdentifier = (value: string) =>
   `"${value.replaceAll('"', '""')}"`;
 export const sqlLiteral = (value: string) => `'${value.replaceAll("'", "''")}'`;
-
-export function supportedPhysicalType(type: string): boolean {
-  if (
-    /^(BOOLEAN|TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT|UHUGEINT|FLOAT|DOUBLE|VARCHAR|DATE|TIME|TIMESTAMP|TIMESTAMP_S|TIMESTAMP_MS|TIMESTAMP_NS|TIMESTAMP WITH TIME ZONE|UUID)$/.test(
-      type,
-    )
-  )
-    return true;
-  const decimal = /^DECIMAL\((\d+),(\d+)\)$/.exec(type);
-  return (
-    decimal !== null &&
-    Number(decimal[1]) >= 1 &&
-    Number(decimal[1]) <= 38 &&
-    Number(decimal[2]) <= Number(decimal[1])
-  );
-}
 
 export function validatePersistedColumns(metadata: DatasetMetadata): void {
   const { columns, version } = metadata.detail;

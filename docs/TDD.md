@@ -94,6 +94,24 @@ not guarantee recovery of the original decimal. T-009 obtained exact precision b
 original CSV text before the decimal cast. The EPIC-03 compiler must handle this distinction
 explicitly; EPIC-02 does not compile or execute it.
 
+### ADR-012 — Semantic Fields and Type System
+
+Accepted for EPIC-02/T-011. See [ADR-012](adr/ADR-012-semantic-fields-type-system.md).
+
+SemanticField is revision-owned and explicitly maps to a DatasetColumn from the same
+DatasetVersion. Controlled dataset_version_id redundancy and composite foreign keys enforce this
+physical lineage in PostgreSQL. id identifies a revision row; field_key is the stable logical
+identity intended for explicit reuse across future revisions.
+
+The initial semantic types are STRING, BOOLEAN, INTEGER, DECIMAL, NUMBER, DATE, DATETIME and
+INSTANT. TypeCompatibility describes whether semantic intent is admissible, not whether an
+execution strategy has already been implemented. In particular, DOUBLE-to-DECIMAL is EXPLICIT and
+does not recover original decimal precision from a materialized binary value. DATE-to-DATETIME is
+INVALID; no implicit midnight policy exists. T-011 performs no DuckDB query or conversion.
+
+Only DRAFT fields can be created, updated or removed. Publication and complete immutable-content
+enforcement remain T-013 work.
+
 ## 3. High-level architecture
 
 ```text

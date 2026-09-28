@@ -1,6 +1,6 @@
 # EPIC-02 — Semantic Layer Foundation
 
-**Status:** T-010 IMPLEMENTED — AWAITING REVIEW
+**Status:** T-011 IMPLEMENTED — AWAITING REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -25,6 +25,13 @@ não cria SemanticField, Metric ou AST.
 `published_at` preservará o instante original de publicação inclusive depois da futura transição
 para ARCHIVED. A igualdade de payload na criação é somente uma regra de idempotência; drafts serão
 editáveis nos tickets seguintes.
+
+## T-011 — Semantic Fields & Type System
+
+Implementar SemanticField em revisões DRAFT, com field_key lógico, vínculo físico garantido por FKs
+compostas, type system mínimo e matriz SAFE/EXPLICIT/INVALID. TypeCompatibility descreve
+admissibilidade de intenção, não disponibilidade de conversão analítica. DOUBLE → DECIMAL é
+EXPLICIT; DATE → DATETIME é INVALID. Não há execução DuckDB, metrics, AST ou publicação.
 
 ## Precisão
 

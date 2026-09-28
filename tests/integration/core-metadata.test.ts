@@ -445,6 +445,7 @@ test("catálogo contém somente índices aprovados, FKs RESTRICT e triggers de t
     ],
   );
   expect(indexes.rows.map((row) => row.indexname)).toEqual([
+    "dataset_columns_id_version_unique",
     "dataset_columns_name_unique",
     "dataset_columns_ordinal_unique",
     "dataset_columns_pkey",

@@ -174,6 +174,7 @@ test("catálogo contém somente o schema semântico aprovado", async () => {
     ORDER BY indexname`,
   );
   expect(indexes.rows.map((row) => row.indexname)).toEqual([
+    "semantic_model_revisions_id_version_unique",
     "semantic_model_revisions_number_unique",
     "semantic_model_revisions_one_draft_idx",
     "semantic_model_revisions_one_published_idx",
