@@ -4,7 +4,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { getDatabaseConfig } from "../../src/lib/db/config.ts";
 import { createSemanticModelDraft } from "../../src/modules/semantic/infrastructure/create-semantic-model-draft.ts";
-import { testDatabaseUrl } from "./helpers/database.ts";
+import { resetTestDatabase, testDatabaseUrl } from "./helpers/database.ts";
 
 let pool: Pool;
 let organizationId: string;
@@ -33,37 +33,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (!pool) return;
-  try {
-    await pool.query(
-      `DELETE FROM app.semantic_model_revisions r USING app.semantic_models m, app.datasets d
-      WHERE r.semantic_model_id = m.id AND m.dataset_id = d.id AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query(
-      `DELETE FROM app.semantic_models m USING app.datasets d
-      WHERE m.dataset_id = d.id AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query(
-      `DELETE FROM app.dataset_columns c USING app.dataset_versions v, app.datasets d
-      WHERE c.dataset_version_id = v.id AND v.dataset_id = d.id AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query(
-      `DELETE FROM app.dataset_versions v USING app.datasets d
-      WHERE v.dataset_id = d.id AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query("DELETE FROM app.datasets WHERE workspace_id = $1", [
-      workspaceId,
-    ]);
-    await pool.query("DELETE FROM app.workspaces WHERE id = $1", [workspaceId]);
-    await pool.query("DELETE FROM app.organizations WHERE id = $1", [
-      organizationId,
-    ]);
-  } finally {
-    await pool.end();
-  }
+  await pool.end();
+  await resetTestDatabase();
 });
 
 async function makeDataset(
@@ -196,7 +167,15 @@ test("catálogo contém somente o schema semântico aprovado", async () => {
       { relname: "semantic_model_revisions", proname: "set_updated_at" },
     ]),
   );
-  expect(triggers.rows).toHaveLength(2);
+  expect(triggers.rows).toEqual(
+    expect.arrayContaining([
+      {
+        relname: "semantic_model_revisions",
+        proname: "guard_semantic_revision_lifecycle",
+      },
+    ]),
+  );
+  expect(triggers.rows).toHaveLength(3);
 });
 
 test("READY cria modelo e draft sem alterar metadados do EPIC-01", async () => {

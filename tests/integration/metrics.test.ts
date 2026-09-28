@@ -15,7 +15,7 @@ import {
   removeMetric,
   updateMetric,
 } from "../../src/modules/semantic/infrastructure/metrics.ts";
-import { testDatabaseUrl } from "./helpers/database.ts";
+import { resetTestDatabase, testDatabaseUrl } from "./helpers/database.ts";
 
 let pool: Pool;
 let organizationId: string;
@@ -44,59 +44,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (!pool) return;
-  try {
-    await pool.query(
-      `DELETE FROM app.metric_field_references r USING app.metrics m,
-       app.semantic_model_revisions sr, app.semantic_models sm, app.datasets d
-       WHERE r.metric_id = m.id AND m.semantic_model_revision_id = sr.id
-         AND sr.semantic_model_id = sm.id AND sm.dataset_id = d.id
-         AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query(
-      `DELETE FROM app.metrics m USING app.semantic_model_revisions sr,
-       app.semantic_models sm, app.datasets d
-       WHERE m.semantic_model_revision_id = sr.id AND sr.semantic_model_id = sm.id
-         AND sm.dataset_id = d.id AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query(
-      `DELETE FROM app.semantic_fields f USING app.semantic_model_revisions r,
-       app.semantic_models m, app.datasets d
-       WHERE f.semantic_model_revision_id = r.id AND r.semantic_model_id = m.id
-         AND m.dataset_id = d.id AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query(
-      `DELETE FROM app.semantic_model_revisions r USING app.semantic_models m, app.datasets d
-       WHERE r.semantic_model_id = m.id AND m.dataset_id = d.id AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query(
-      `DELETE FROM app.semantic_models m USING app.datasets d
-       WHERE m.dataset_id = d.id AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query(
-      `DELETE FROM app.dataset_columns c USING app.dataset_versions v, app.datasets d
-       WHERE c.dataset_version_id = v.id AND v.dataset_id = d.id AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query(
-      `DELETE FROM app.dataset_versions v USING app.datasets d
-       WHERE v.dataset_id = d.id AND d.workspace_id = $1`,
-      [workspaceId],
-    );
-    await pool.query("DELETE FROM app.datasets WHERE workspace_id = $1", [
-      workspaceId,
-    ]);
-    await pool.query("DELETE FROM app.workspaces WHERE id = $1", [workspaceId]);
-    await pool.query("DELETE FROM app.organizations WHERE id = $1", [
-      organizationId,
-    ]);
-  } finally {
-    await pool.end();
-  }
+  await pool.end();
+  await resetTestDatabase();
 });
 
 async function fixture(): Promise<Fixture> {
@@ -420,9 +369,14 @@ test.each(["PUBLISHED", "ARCHIVED"] as const)(
     const created = await createMetric(pool, input(f));
     if (created.outcome !== "CREATED") throw new Error("Expected metric");
     await pool.query(
-      "UPDATE app.semantic_model_revisions SET status=$2,published_at=statement_timestamp() WHERE id=$1",
-      [f.revisionId, status],
+      "UPDATE app.semantic_model_revisions SET status='PUBLISHED',published_at=statement_timestamp() WHERE id=$1",
+      [f.revisionId],
     );
+    if (status === "ARCHIVED")
+      await pool.query(
+        "UPDATE app.semantic_model_revisions SET status='ARCHIVED' WHERE id=$1",
+        [f.revisionId],
+      );
     expect(await createMetric(pool, { ...input(f), name: "other" })).toEqual({
       outcome: "REVISION_NOT_EDITABLE",
       status,

@@ -126,6 +126,21 @@ DECIMAL(38,0) or reducing scale. Overflow outside that explicit envelope belongs
 execution. COUNT and COUNT_DISTINCT return semantic INTEGER cardinality; this does not assert the
 same physical representation as an INTEGER SemanticField. T-012 performs no DuckDB execution.
 
+### ADR-014 — Semantic validation and publication
+
+Accepted for EPIC-02/T-013. See
+[ADR-014](adr/ADR-014-semantic-validation-publication.md).
+
+Content validation is deterministic, read-only and independent from lifecycle eligibility. A
+publishable snapshot requires a READY DatasetVersion, at least one SemanticField, at least one
+Metric, valid physical lineage and type compatibility, valid Metric AST/type inference, and an
+exact match between AST field keys and `metric_field_references`.
+
+Publication locks SemanticModel then SemanticModelRevision, validates inside the transaction,
+archives the previous published revision and publishes the target atomically. PostgreSQL guards
+allow only DRAFT-to-PUBLISHED and PUBLISHED-to-ARCHIVED, preserve the original `published_at`, and
+make PUBLISHED/ARCHIVED revision metadata and semantic content immutable to direct DML.
+
 ## 3. High-level architecture
 
 ```text
@@ -400,6 +415,10 @@ docs/T-009-ground-truth-aggregation.md. No migration or dependency.
 
 ## 7. Semantic Layer
 The Semantic Layer maps physical data to business meaning.
+
+Semantic definitions are edited in DRAFT revisions. Explicit publication creates an immutable
+snapshot; publishing a newer valid revision atomically archives the previously published snapshot.
+Validation never runs analytical queries.
 
 Example:
 

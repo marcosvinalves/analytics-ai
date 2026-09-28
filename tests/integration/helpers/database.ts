@@ -56,3 +56,15 @@ export async function runDatabaseCommand(command: "check" | "migrate") {
     timeout: 15000,
   });
 }
+
+/** Resets only the explicitly configured disposable *_test database. */
+export async function resetTestDatabase(): Promise<void> {
+  const client = await connectTestDatabase();
+  try {
+    await client.query("DROP SCHEMA IF EXISTS app CASCADE");
+    await client.query("DROP SCHEMA IF EXISTS migration_metadata CASCADE");
+  } finally {
+    await client.end();
+  }
+  await runDatabaseCommand("migrate");
+}

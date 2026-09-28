@@ -1,6 +1,6 @@
 # EPIC-02 — Semantic Layer Foundation
 
-**Status:** T-012 IMPLEMENTED — AWAITING REVIEW
+**Status:** T-013 IMPLEMENTED — AWAITING REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -39,6 +39,17 @@ Implementar Metric e um AST v1 fechado, declarativo e independente do engine. Ex
 field_key e persistem atomicamente uma projeção relacional mínima para integridade. A raiz é uma
 agregação; não há SQL, compilação ou execução DuckDB. Result type é derivado. Alterações em fields
 não podem deixar Metrics inválidas ou órfãs. Publicação permanece T-013.
+
+## T-013 — Validation & Publication
+
+Implementar validação determinística e read-only do snapshot, separada da elegibilidade de
+publication. Um snapshot publicável exige DatasetVersion READY, ao menos um SemanticField e uma
+Metric, lineage e tipos válidos, AST inferível e projeção de referências exata.
+
+Publication bloqueia SemanticModel e SemanticModelRevision, valida dentro da transação, arquiva a
+revisão publicada anterior e publica o draft atomicamente. Triggers PostgreSQL específicos tornam
+metadata e conteúdo de revisões PUBLISHED/ARCHIVED imutáveis e preservam o `published_at` original.
+Não há archive API pública, execução DuckDB, compilação ou T-014 neste ticket.
 
 ## Precisão
 
