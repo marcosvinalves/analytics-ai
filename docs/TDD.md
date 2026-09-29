@@ -155,6 +155,26 @@ Resolution and content reads execute in one `REPEATABLE READ READ ONLY` transact
 queries load the revision, fields, metrics and reference projection without N+1 or writer locks.
 Inspection performs no analytical execution and does not generate SQL.
 
+### ADR-016 — Semantic Query Contract
+
+Accepted for EPIC-03/T-015. See [ADR-016](adr/ADR-016-semantic-query-contract.md).
+
+`SemanticQueryV1` is a closed, versioned domain contract parsed from `unknown`. It selects one to
+four metrics by metricKey, up to three dimensions by fieldKey, bounded filters with implicit AND,
+bounded output ordering and an optional semantic limit. Exact-key validation excludes SQL,
+physical names and unknown properties at every level. T-015 performs structural validation only;
+semantic resolution against `SemanticModelInspection` begins in T-016.
+
+Literals use explicit discriminated types. INTEGER, DECIMAL and NUMBER remain canonical strings;
+T-015 never converts NUMBER to JavaScript number or decides whether an engine can represent it.
+DATE and DATETIME have strict timezone-free forms, while INSTANT V1 accepts only explicit UTC `Z`.
+NULL is represented only by `IS_NULL` and `IS_NOT_NULL`.
+
+The parser reconstructs and deeply freezes valid queries. Fixed-order canonical JSON is limited to
+16 KiB UTF-8. Its JSON and byte count are parser metadata used only for size enforcement,
+determinism and tests; they are not query identity, persistence, history or cache data. An absent
+semantic limit remains absent. Future execution safety caps must not silently change its meaning.
+
 ## 3. High-level architecture
 
 ```text
