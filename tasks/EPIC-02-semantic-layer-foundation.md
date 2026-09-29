@@ -1,6 +1,6 @@
 # EPIC-02 — Semantic Layer Foundation
 
-**Status:** T-013 IMPLEMENTED — AWAITING REVIEW
+**Status:** T-014 IMPLEMENTED — EPIC-02 AWAITING REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -50,6 +50,24 @@ Publication bloqueia SemanticModel e SemanticModelRevision, valida dentro da tra
 revisão publicada anterior e publica o draft atomicamente. Triggers PostgreSQL específicos tornam
 metadata e conteúdo de revisões PUBLISHED/ARCHIVED imutáveis e preservam o `published_at` original.
 Não há archive API pública, execução DuckDB, compilação ou T-014 neste ticket.
+
+## T-014 — Semantic Model Inspection
+
+Implementar `SemanticModelInspection` como fronteira read-only e independente do PostgreSQL para a
+revisão PUBLISHED ativa ou uma revision específica. Fields expõem fieldKey, tipo semântico e
+lineage físico sem PKs internas. Metrics expõem metricKey, AST normalizado, resultType derivado e
+dependencies por fieldKey.
+
+Toda resolução ocorre em um único snapshot `REPEATABLE READ READ ONLY`. A validação do T-013 é
+reutilizada; inconsistências retornam issues sem snapshot parcial ou repair. Não há migration,
+cache, endpoint, UI ou execução analítica.
+
+## EPIC-02 completion gate
+
+O epic entrega o fluxo DatasetVersion → SemanticModel → revisions → fields/metrics tipados →
+validation → publication imutável → inspection. Um futuro EPIC-03 pode consumir o snapshot
+publicado sem conhecer o schema PostgreSQL, interpretar JSONB cru ou reconstruir type inference e
+dependencies. Conversão física, compilação e execução continuam fora deste epic.
 
 ## Precisão
 

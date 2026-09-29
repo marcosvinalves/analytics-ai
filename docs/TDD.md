@@ -141,6 +141,20 @@ archives the previous published revision and publishes the target atomically. Po
 allow only DRAFT-to-PUBLISHED and PUBLISHED-to-ARCHIVED, preserve the original `published_at`, and
 make PUBLISHED/ARCHIVED revision metadata and semantic content immutable to direct DML.
 
+### ADR-015 — Semantic Model Inspection
+
+Accepted for EPIC-02/T-014. See [ADR-015](adr/ADR-015-semantic-model-inspection.md).
+
+`SemanticModelInspection` is a PostgreSQL-independent, read-only contract for a specific semantic
+revision or the active PUBLISHED revision. It exposes fieldKey/metricKey identities, physical
+lineage without internal row IDs, normalized ASTs, derived result types and field-key dependencies.
+Every successful inspection is semantically consistent; invalid metadata returns issues without a
+partial snapshot or repair.
+
+Resolution and content reads execute in one `REPEATABLE READ READ ONLY` transaction. Four metadata
+queries load the revision, fields, metrics and reference projection without N+1 or writer locks.
+Inspection performs no analytical execution and does not generate SQL.
+
 ## 3. High-level architecture
 
 ```text
