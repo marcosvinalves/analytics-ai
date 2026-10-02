@@ -175,6 +175,28 @@ The parser reconstructs and deeply freezes valid queries. Fixed-order canonical 
 determinism and tests; they are not query identity, persistence, history or cache data. An absent
 semantic limit remains absent. Future execution safety caps must not silently change its meaning.
 
+### ADR-017 — Semantic Query Validation & Resolution
+
+Accepted for EPIC-03/T-016. See
+[ADR-017](adr/ADR-017-semantic-query-resolution.md).
+
+`resolveSemanticQuery` is a pure boundary between a structurally valid `SemanticQueryV1` and a
+semantic query resolved against one consistent PUBLISHED `SemanticModelInspection`. DRAFT and
+ARCHIVED snapshots are not executable. Metrics retain their inspection-owned AST, result type and
+resolved field dependencies; dimensions and filters retain semantic field metadata and physical
+lineage without interpreting it.
+
+Filter literals require an exact SemanticType match. Ordered comparisons are limited to numeric
+and temporal types. DECIMAL literals must fit the declared precision and scale without conversion,
+rounding or truncation. INTEGER receives no invented precision, and NUMBER receives no physical
+range validation. Physical capability remains T-017 work.
+
+The resolved contract is reconstructed and omits descriptions. `publishedAt` remains a cloned
+`Date`; it is not serialized at this boundary and does not share its reference with the inspection.
+Dimensions precede metrics in future output ordering. The semantic limit remains absent when not
+requested, independently of future execution safety caps. T-016 performs no I/O, SQL, source
+resolution, physical planning or execution.
+
 ## 3. High-level architecture
 
 ```text

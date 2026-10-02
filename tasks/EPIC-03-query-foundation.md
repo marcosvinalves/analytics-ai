@@ -1,6 +1,6 @@
 # EPIC-03 — Query Foundation
 
-**Status:** T-015 IMPLEMENTED — AWAITING REVIEW
+**Status:** T-016 IMPLEMENTED — AWAITING REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -34,7 +34,24 @@ canônica de até 16 KiB é metadata do parser, não identidade, hash, cache, hi
 `SemanticQueryV1`. Limit semântico e safety result cap são conceitos separados.
 
 T-015 não importa `SemanticModelInspection`, não resolve keys e não acessa PostgreSQL, DuckDB, SQL,
-filesystem ou storage. Não há migration ou dependência nova. T-016 não foi iniciado.
+filesystem ou storage. Não houve migration ou dependência nova.
+
+## T-016 — Semantic Query Validation & Resolution
+
+Implementar `resolveSemanticQuery(SemanticQueryV1, SemanticModelInspection)` como serviço de domínio
+puro. Somente snapshots PUBLISHED são elegíveis. Metrics, dimensions, filters e orderBy são
+resolvidos por metricKey/fieldKey, sempre usando AST, types, labels, dependencies e lineage da
+inspection.
+
+Filters exigem correspondência literal/type exata. Comparações ordenadas aceitam somente tipos
+numéricos e temporais. DECIMAL precisa caber na precision/scale declarada sem cast, Number,
+arredondamento ou truncamento. INTEGER não recebe precision física e NUMBER extremo continua
+semanticamente válido. IS_NULL/IS_NOT_NULL aceitam todos os SemanticTypes.
+
+Dependencies são expandidas para ResolvedField. Descriptions não são copiadas. `publishedAt`
+permanece Date em uma nova instância, sem compartilhar referência com a inspection. O limit
+semântico é preservado sem default ou safety cap. Não há I/O, source resolution, plano físico,
+DuckDB, SQL, migration ou dependência nova. T-017 não foi iniciado.
 
 ## Architecture boundary
 
@@ -46,8 +63,7 @@ parseSemanticQuery
 SemanticQueryV1
 ```
 
-Somente o T-016 poderá combinar `SemanticQueryV1` e `SemanticModelInspection` para produzir uma
-consulta resolvida.
+O T-016 combina `SemanticQueryV1` e `SemanticModelInspection` para produzir uma consulta resolvida.
 
 ## Out of scope do T-015
 
