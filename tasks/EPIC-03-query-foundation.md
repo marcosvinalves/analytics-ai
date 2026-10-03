@@ -1,6 +1,6 @@
 # EPIC-03 — Query Foundation
 
-**Status:** T-016 IMPLEMENTED — AWAITING REVIEW
+**Status:** T-017 IMPLEMENTED — AWAITING REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -52,6 +52,26 @@ Dependencies são expandidas para ResolvedField. Descriptions não são copiadas
 permanece Date em uma nova instância, sem compartilhar referência com a inspection. O limit
 semântico é preservado sem default ou safety cap. Não há I/O, source resolution, plano físico,
 DuckDB, SQL, migration ou dependência nova. T-017 não foi iniciado.
+
+## T-017 — Physical Expression Planning
+
+Implementa duas boundaries separadas. `resolveAnalyticalSource` resolve metadata e material local
+de uma DatasetVersion READY/CSV dentro do workspace. O path concreto permanece encapsulado em
+material handle opaco. `planPhysicalQuery` é puro e transforma ResolvedSemanticQuery + fonte
+autorizada em PhysicalQueryPlan fechado, sem PostgreSQL, filesystem, DuckDB ou SQL.
+
+CSV é planejado como texto. Header, colunas, ordem, duplicatas, row shape e row count são globais;
+somente fields usados recebem value conversion policy. inferred_type orienta lineage e
+compatibilidade, sem revalidar valores de colunas não usadas.
+
+DECIMAL parte do raw textual por TEXT_TO_EXACT_DECIMAL e nunca passa por DOUBLE materializado.
+Arithmetic mista declara EXACT_DECIMAL/result type/overflow sem regra genérica
+INTEGER-to-DECIMAL(38,0). NUMBER preserva texto e declara TEXT_TO_FINITE_DOUBLE; T-018/T-019 farão a
+validação autoritativa sem JS Number. COUNT/COUNT_DISTINCT resultam BIGINT físico e INTEGER
+semântico. Outputs mantêm dimensions antes de metrics, order usa outputIndex + NULLS LAST e limit
+semântico não recebe safety cap.
+
+Não houve migration ou dependência. T-018 não foi iniciado.
 
 ## Architecture boundary
 

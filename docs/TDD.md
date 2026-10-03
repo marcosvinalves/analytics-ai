@@ -197,6 +197,33 @@ Dimensions precede metrics in future output ordering. The semantic limit remains
 requested, independently of future execution safety caps. T-016 performs no I/O, SQL, source
 resolution, physical planning or execution.
 
+### ADR-018 — Physical Expression Planning
+
+Accepted for EPIC-03/T-017. See
+[ADR-018](adr/ADR-018-physical-expression-planning.md).
+
+`resolveAnalyticalSource` resolves a workspace-scoped READY CSV DatasetVersion through a short
+read-only PostgreSQL transaction followed by local material validation. The concrete path remains
+inside an opaque material handle; it is not ordinary PhysicalQueryPlan data, an error, a DTO or a
+client/compiler parameter. Size and stat identity support future pre/post execution checks without
+hashing every query.
+
+`planPhysicalQuery` is pure, synchronous and deterministic. It verifies query/source identities and
+exact lineage, then produces a self-contained PhysicalQueryPlan. CSV is read initially as text.
+Global validation covers header, columns/order, duplicates, row shape and expected row count.
+Only used fields receive value conversion policies; inferred physical type is planning metadata,
+not global token revalidation.
+
+DECIMAL uses raw text through TEXT_TO_EXACT_DECIMAL and never materialized DOUBLE. Mixed decimal
+arithmetic records EXACT_DECIMAL and the semantic result envelope without imposing a generic
+INTEGER-to-DECIMAL(38,0) cast. NUMBER records TEXT_TO_FINITE_DOUBLE with non-finite, overflow and
+underflow-to-zero errors; authoritative representability remains T-018/T-019 work and no value is
+converted with JavaScript Number.
+
+Physical expressions, filters, dimensions, metrics, output descriptors, output-index ordering and
+semantic limit contain no SQL. COUNT/COUNT_DISTINCT have physical BIGINT and semantic INTEGER.
+There is no safety cap, execution, migration or dependency in T-017.
+
 ## 3. High-level architecture
 
 ```text

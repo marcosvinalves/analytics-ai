@@ -59,10 +59,14 @@ const NUMERIC_TYPES = new Set(["INTEGER", "DECIMAL", "NUMBER"]);
 
 type ParseState = { nodes: number };
 type ParseResult<T> = { value: T } | { error: InvalidExpression };
-type InferredType = {
+export type InferredScalarType = {
   type: SemanticType;
   integerDigits?: number;
 };
+
+export type InferScalarExpressionTypeResult =
+  | { valid: true; value: InferredScalarType }
+  | { valid: false; error: InvalidExpression };
 
 function failure(code: InvalidExpressionCode, path: string): InvalidExpression {
   return { code, path };
@@ -163,7 +167,7 @@ function validLiteral(type: "INTEGER" | "DECIMAL", value: string): boolean {
   return Math.max(1, precision) <= 38;
 }
 
-function literalType(literal: LiteralExpression): InferredType {
+function literalType(literal: LiteralExpression): InferredScalarType {
   const unsigned = literal.value.replace("-", "");
   if (literal.type === "INTEGER")
     return { type: { kind: "INTEGER" }, integerDigits: unsigned.length };
@@ -185,7 +189,7 @@ function decimalBinary(
   left: Extract<SemanticType, { kind: "DECIMAL" }>,
   right: Extract<SemanticType, { kind: "DECIMAL" }>,
   path: string,
-): ParseResult<InferredType> {
+): ParseResult<InferredScalarType> {
   const scale =
     op === "MULTIPLY"
       ? left.scale + right.scale
@@ -203,10 +207,10 @@ function decimalBinary(
 
 function integerDecimal(
   op: BinaryExpression["op"],
-  integer: InferredType,
+  integer: InferredScalarType,
   decimal: Extract<SemanticType, { kind: "DECIMAL" }>,
   path: string,
-): ParseResult<InferredType> {
+): ParseResult<InferredScalarType> {
   if (integer.integerDigits === undefined)
     return {
       value: {
@@ -223,10 +227,10 @@ function integerDecimal(
 
 function inferBinary(
   op: BinaryExpression["op"],
-  left: InferredType,
-  right: InferredType,
+  left: InferredScalarType,
+  right: InferredScalarType,
   path: string,
-): ParseResult<InferredType> {
+): ParseResult<InferredScalarType> {
   if (!NUMERIC_TYPES.has(left.type.kind) || !NUMERIC_TYPES.has(right.type.kind))
     return { error: failure("INCOMPATIBLE_TYPE", path) };
   if (left.type.kind === "NUMBER" || right.type.kind === "NUMBER")
@@ -247,7 +251,7 @@ function inferScalar(
   fields: ReadonlyMap<string, SemanticType>,
   path: string,
   fieldKeys: Set<string>,
-): ParseResult<InferredType> {
+): ParseResult<InferredScalarType> {
   if (expression.kind === "field") {
     const type = fields.get(expression.fieldKey);
     if (!type) return { error: failure("UNKNOWN_FIELD", path) };
@@ -265,6 +269,17 @@ function inferScalar(
   );
   if ("error" in right) return right;
   return inferBinary(expression.op, left.value, right.value, path);
+}
+
+/** Reuses the T-012 inference rules for an already-normalized scalar subtree. */
+export function inferScalarExpressionType(
+  expression: ScalarExpression,
+  fields: ReadonlyMap<string, SemanticType>,
+): InferScalarExpressionTypeResult {
+  const inferred = inferScalar(expression, fields, "$", new Set<string>());
+  return "error" in inferred
+    ? { valid: false, error: inferred.error }
+    : { valid: true, value: inferred.value };
 }
 
 export function validateMetricExpression(
