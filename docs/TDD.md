@@ -266,6 +266,25 @@ string and temporals as textual values with microseconds, without JavaScript Dat
 contains logical key, label, role and semantic type only. No PostgreSQL access, persistent mutation,
 migration or dependency is introduced.
 
+### ADR-021 — Query Explainability & Lineage
+
+Accepted for EPIC-03/T-020. See
+[ADR-021](adr/ADR-021-query-explainability-lineage.md).
+
+`buildQueryExplanation` is a pure boundary from `ResolvedSemanticQuery + QueryResult` to a
+versioned `QueryExplanation`. Semantic metadata is authoritative; QueryResult is used only to
+validate output columns, row width and value tags. PhysicalQueryPlan, CompiledQuery, SQL, DuckDB,
+PostgreSQL and storage do not enter the boundary.
+
+The explanation identifies the exact model, published revision, Dataset and DatasetVersion. It
+translates metric expressions into a public semantic DTO, exposes dependency lineage without
+physical fields, preserves filters/order/semantic limit and classifies INTEGER/DECIMAL as exact and
+NUMBER as approximate. Rows remain exclusively in QueryResult. Filter literals remain complete in
+the Alpha, so QueryExplanation is not safe to log without a future external redaction policy.
+
+The builder reconstructs and deeply freezes its output. It returns deterministic, bounded issues
+for semantic or result inconsistencies and introduces no migration or dependency.
+
 ## 3. High-level architecture
 
 ```text

@@ -1,6 +1,6 @@
 # EPIC-03 — Query Foundation
 
-**Status:** T-019 IMPLEMENTED — AWAITING REVIEW
+**Status:** T-020 IMPLEMENTED — AWAITING REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -105,6 +105,23 @@ payload público a 4 MiB. `QueryResult` expõe somente identidade lógica e `Que
 INTEGER/DECIMAL e temporais preservam exatidão sem JavaScript Number/Date. Erros estruturados usam
 somente `exception_type` e mappings do statement ativo. Não houve migration, dependência,
 PostgreSQL, persistência ou mutation. T-020 não foi iniciado.
+
+## T-020 — Query Explainability & Lineage
+
+`buildQueryExplanation` transforma `ResolvedSemanticQuery + QueryResult` em `QueryExplanation V1`
+de forma pura, síncrona e determinística. A consulta resolvida é a fonte de semântica; o resultado
+serve somente para validar columns, ordem, tipos, largura das rows e tags de QueryValue.
+
+A explanation identifica model, revision publicada, Dataset e DatasetVersion exatos. Métricas usam
+um DTO semântico próprio para SUM, COUNT, COUNT_DISTINCT, FIELD, LITERAL e operações aritméticas;
+dependencies e dimensions omitem lineage física. Filtros mantêm AND, ordem e literals tipados;
+orderBy expõe key/label/role, direction e NULLS LAST. INTEGER/DECIMAL são EXACT e NUMBER é
+APPROXIMATE.
+
+QueryResult rows não são copiadas. PhysicalQueryPlan, CompiledQuery, SQL, DuckDB, PostgreSQL e
+storage não entram na boundary. Valores completos de filtros tornam QueryExplanation inadequada
+para logging sem futura redaction externa. Não houve migration ou dependência. T-021 não foi
+iniciado.
 
 ## Architecture boundary
 
