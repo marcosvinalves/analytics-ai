@@ -17,6 +17,7 @@ import type {
 } from "../domain/physical-query-plan.ts";
 
 const SOURCE_TABLE = "__t018_source";
+const compiledQueries = new WeakSet<object>();
 const INTEGER_PATTERN = "^-?[0-9]+$";
 const DECIMAL_PATTERN = "^[+-]?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)$";
 const NUMBER_PATTERN =
@@ -901,27 +902,36 @@ export function compilePhysicalQuery(
     if (literals) validations.push(literals);
     const resultValues = resultValueValidation(plan);
     if (resultValues) validations.push(resultValues);
-    return deepFreeze({
-      outcome: "COMPILED",
-      compiledQuery: {
-        version: 1,
-        material: plan.source.material,
-        sessionRequirements: { timeZone: "UTC" },
-        lifecycle: {
-          connection: "DEDICATED_PER_EXECUTION",
-          temporaryObject: SOURCE_TABLE,
-          cleanup: "CLOSE_CONNECTION",
+    const result: Extract<CompilePhysicalQueryResult, { outcome: "COMPILED" }> =
+      deepFreeze({
+        outcome: "COMPILED",
+        compiledQuery: {
+          version: 1,
+          material: plan.source.material,
+          materialIdentity: { ...plan.source.materialIdentity },
+          sessionRequirements: { timeZone: "UTC" },
+          lifecycle: {
+            connection: "DEDICATED_PER_EXECUTION",
+            temporaryObject: SOURCE_TABLE,
+            cleanup: "CLOSE_CONNECTION",
+          },
+          sourceValidations: [sourceHeaderValidation(plan)],
+          preparation: sourcePreparation(plan),
+          validations,
+          query: analyticalStatement(plan),
+          outputs: plan.output.map(cloneOutput),
         },
-        sourceValidations: [sourceHeaderValidation(plan)],
-        preparation: sourcePreparation(plan),
-        validations,
-        query: analyticalStatement(plan),
-        outputs: plan.output.map(cloneOutput),
-      },
-    });
+      });
+    compiledQueries.add(result.compiledQuery);
+    return result;
   } catch (error) {
     return error instanceof CompilationFailure
       ? error.result
       : { outcome: "INCONSISTENT_PHYSICAL_PLAN", path: "$" };
   }
+}
+
+/** Technical Alpha capability check: compiled queries are executable only in-process. */
+export function isTrustedCompiledQuery(value: CompiledQuery): boolean {
+  return compiledQueries.has(value);
 }

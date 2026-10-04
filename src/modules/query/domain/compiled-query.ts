@@ -1,4 +1,7 @@
-import type { AnalyticalMaterialHandle } from "../../dataset/domain/analytical-source.ts";
+import type {
+  AnalyticalMaterialHandle,
+  AnalyticalMaterialIdentity,
+} from "../../dataset/domain/analytical-source.ts";
 import type { OutputDescriptor } from "./physical-query-plan.ts";
 
 export type CompilationFailureCode =
@@ -52,6 +55,7 @@ export type CompiledValidationCommand = Readonly<{
 export type CompiledQuery = Readonly<{
   version: 1;
   material: AnalyticalMaterialHandle;
+  materialIdentity: AnalyticalMaterialIdentity;
   sessionRequirements: Readonly<{ timeZone: "UTC" }>;
   lifecycle: Readonly<{
     connection: "DEDICATED_PER_EXECUTION";

@@ -1,6 +1,6 @@
 # EPIC-03 — Query Foundation
 
-**Status:** T-018 IMPLEMENTED — AWAITING REVIEW
+**Status:** T-019 IMPLEMENTED — AWAITING REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -88,6 +88,23 @@ DuckDB 1.5.5 comprovou HUGEINT × DECIMAL(18,2) e SUM como DECIMAL(38,2), inclus
 `2059.61`, sem DOUBLE. DECIMAL recebe validação lexical/envelope antes do cast; NUMBER rejeita
 overflow, não-finitos e underflow para zero. Validation commands retornam boolean/counts e carregam
 failure mappings controlados. Não houve migration ou dependência. T-019 não foi iniciado.
+
+## T-019 — Query Execution & Typed Results
+
+`executeCompiledQuery` executa somente capabilities `CompiledQuery` produzidas in-process pelo
+compiler. A identidade do material é preservada desde o plan e comparada antes e depois da query;
+o path é resolvido uma vez, bound como VARCHAR e nunca aparece no resultado.
+
+Cada chamada usa instance/conexão DuckDB dedicadas com UTC, 2 threads, 256 MB, spill desabilitado e
+extensions automáticas bloqueadas. O lifecycle compilado é executado sem gerar ou reescrever SQL.
+Timeout de 10 segundos e AbortSignal usam interrupt real e aguardam a operação ativa assentar antes
+do cleanup.
+
+Streaming aplica cap de 500 rows separado do limit semântico. Accounting incremental limita o
+payload público a 4 MiB. `QueryResult` expõe somente identidade lógica e `QueryValue` fechado;
+INTEGER/DECIMAL e temporais preservam exatidão sem JavaScript Number/Date. Erros estruturados usam
+somente `exception_type` e mappings do statement ativo. Não houve migration, dependência,
+PostgreSQL, persistência ou mutation. T-020 não foi iniciado.
 
 ## Architecture boundary
 

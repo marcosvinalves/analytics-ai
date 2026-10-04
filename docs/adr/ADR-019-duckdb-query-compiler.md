@@ -9,8 +9,15 @@ DuckDB, abrir arquivos ou consultar PostgreSQL. Todo SQL analítico nasce no com
 resolver e futuro executor não aceitam nem montam fragmentos SQL livres.
 
 O compiler recebe somente o plan. O path concreto não entra na linguagem física: `CompiledQuery`
-preserva o `AnalyticalMaterialHandle` e representa seu uso com um parâmetro `MATERIAL_PATH`. O
-T-019 deverá resolvê-lo por `withAnalyticalMaterial` e fazer binding como `VARCHAR`.
+preserva o `AnalyticalMaterialHandle`, copia a `materialIdentity` já resolvida no T-017 e representa
+o uso do path com um parâmetro `MATERIAL_PATH`. O T-019 resolve o handle por
+`withAnalyticalMaterial`, faz binding como `VARCHAR` e compara a identidade antes e depois da
+execução. O compiler não recalcula a identidade.
+
+O objeto compilado também é registrado em um `WeakSet` privado. Essa provenance torna
+`CompiledQuery` uma capability in-process na Technical Alpha: somente o objeto produzido por
+`compilePhysicalQuery` pode ser executado. Não é contrato serializável nem permite reexecução em
+outro processo; objetos estruturais reconstruídos são rejeitados.
 
 ## Contrato compilado e lifecycle
 
@@ -96,5 +103,5 @@ executor no T-018.
 SQL existe apenas no contrato interno. Não pertence a DTO público, erro público, log normal ou
 explainability. O compilador é determinístico, reconstrói e congela seu output e não altera o plan.
 
-T-018 não implementa execução de produção, QueryResult, safety cap, timeout, cancellation,
-PostgreSQL, endpoint, UI ou T-019. Não adiciona migration ou dependência.
+T-018 não implementa PostgreSQL, endpoint ou UI. A execução, QueryResult, safety cap, timeout e
+cancelamento são definidos pelo T-019. Não adiciona migration ou dependência.

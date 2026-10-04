@@ -244,6 +244,28 @@ Compiled temporary state lives only for the dedicated connection and is cleaned 
 UTC is a semantic session requirement; resource limits, execution, safety caps and typed results
 remain T-019. T-018 adds no migration or dependency.
 
+### ADR-020 — Query Execution & Typed Results
+
+Accepted for EPIC-03/T-019. See
+[ADR-020](adr/ADR-020-query-execution-typed-results.md).
+
+`executeCompiledQuery` accepts only an in-process `CompiledQuery` capability registered by the
+compiler. Material paths remain behind the opaque handle and are bound as VARCHAR. File identity
+is checked before analytical work and before returning. Each call owns an in-memory DuckDB instance
+and connection configured for UTC, two threads, 256 MB memory, no spill and no automatic extension
+loading.
+
+The executor consumes the compiled lifecycle without generating, parsing or rewriting SQL. Real
+interruption backs a ten-second timeout and optional AbortSignal. Streaming detects more than 500
+result rows without changing semantic limit; public result payload is capped at 4 MiB with
+incremental UTF-8 accounting. These caps complement engine memory containment and do not imply that
+GROUP BY or ORDER BY evaluates only the exposed rows.
+
+Typed results preserve integers and decimals as exact strings, NUMBER as a finite deterministic
+string and temporals as textual values with microseconds, without JavaScript Date. Output metadata
+contains logical key, label, role and semantic type only. No PostgreSQL access, persistent mutation,
+migration or dependency is introduced.
+
 ## 3. High-level architecture
 
 ```text
