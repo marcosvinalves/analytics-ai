@@ -1,6 +1,6 @@
 # EPIC-03 — Query Foundation
 
-**Status:** T-017 IMPLEMENTED — AWAITING REVIEW
+**Status:** T-018 IMPLEMENTED — AWAITING REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -72,6 +72,22 @@ semântico. Outputs mantêm dimensions antes de metrics, order usa outputIndex +
 semântico não recebe safety cap.
 
 Não houve migration ou dependência. T-018 não foi iniciado.
+
+## T-018 — DuckDB Query Compiler
+
+`compilePhysicalQuery` transforma o plano físico em `CompiledQuery` fechado sem executar DuckDB.
+Somente o compiler produz SQL. Paths permanecem protegidos por material handle e
+`MATERIAL_PATH`; literals são bound e physical names recebem quoting específico de identifier.
+
+Cada execução exige conexão dedicada: valida header, materializa o CSV como VARCHAR em tabela
+temporária, valida row count e somente os fields usados, executa validações de capacidade e então
+disponibiliza a query analítica. O fechamento da conexão elimina a materialização. UTC é requisito
+semântico; recursos, timeout, cancellation, safety cap e QueryResult permanecem T-019.
+
+DuckDB 1.5.5 comprovou HUGEINT × DECIMAL(18,2) e SUM como DECIMAL(38,2), inclusive o ground truth
+`2059.61`, sem DOUBLE. DECIMAL recebe validação lexical/envelope antes do cast; NUMBER rejeita
+overflow, não-finitos e underflow para zero. Validation commands retornam boolean/counts e carregam
+failure mappings controlados. Não houve migration ou dependência. T-019 não foi iniciado.
 
 ## Architecture boundary
 

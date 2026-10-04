@@ -224,6 +224,26 @@ Physical expressions, filters, dimensions, metrics, output descriptors, output-i
 semantic limit contain no SQL. COUNT/COUNT_DISTINCT have physical BIGINT and semantic INTEGER.
 There is no safety cap, execution, migration or dependency in T-017.
 
+### ADR-019 — DuckDB Query Compiler
+
+Accepted for EPIC-03/T-018. See
+[ADR-019](adr/ADR-019-duckdb-query-compiler.md).
+
+`compilePhysicalQuery` is a pure boundary from `PhysicalQueryPlan` to an internal `CompiledQuery`.
+Only the compiler owns analytical SQL. The material path remains behind its opaque handle and is
+represented by a bound `MATERIAL_PATH`; values are bound parameters and identifiers use
+DuckDB-specific quoting.
+
+CSV is materialized per execution on a dedicated DuckDB connection with every column initially
+VARCHAR. Typed validation commands cover global source shape and only the used field values before
+the analytical query. Exact DECIMAL starts from raw text and validates lexical scale and envelope
+before casting. DuckDB 1.5.5 proved direct HUGEINT × DECIMAL(18,2) and SUM as DECIMAL(38,2), with no
+DOUBLE intermediary. NUMBER inputs and results must remain finite.
+
+Compiled temporary state lives only for the dedicated connection and is cleaned up by closing it.
+UTC is a semantic session requirement; resource limits, execution, safety caps and typed results
+remain T-019. T-018 adds no migration or dependency.
+
 ## 3. High-level architecture
 
 ```text
