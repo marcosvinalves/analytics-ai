@@ -16,8 +16,8 @@ export default async function setup() {
       );
     }
     const result = await runDatabaseCommand("migrate");
-    if (!result.stdout.includes("8 migração(ões)")) {
-      throw new Error("Banco limpo deve receber as oito migrações até T-022.");
+    if (!result.stdout.includes("9 migração(ões)")) {
+      throw new Error("Banco limpo deve receber as nove migrações até T-025.");
     }
   } finally {
     await client.end();

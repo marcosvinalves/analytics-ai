@@ -347,6 +347,22 @@ INTEGER and DECIMAL remain exact strings; NUMBER remains an approximate authorit
 optional finite `geometryValue` may be derived only for future rendering geometry. The mapper does
 not aggregate, filter, sort, format, parse temporal values, add result limits or perform I/O.
 
+### ADR-025 — Dashboard Widgets & Layout Persistence
+
+Accepted for EPIC-04/T-025. See
+[ADR-025](adr/ADR-025-dashboard-widgets-layout.md).
+
+Dashboard remains the aggregate root. Widget mutations serialize on its workspace-scoped row,
+enforcing at most 12 widgets and no rectangular overlap in a 12-column grid. The persisted
+SemanticModel must belong to the same Workspace. SemanticQueryV1 and VisualizationSpecV1 are
+canonical JSONB, structurally parsed before writes and revalidated after reads; saving does not
+publish, resolve or execute a query.
+
+Read reconstruction additionally checks individual layout bounds and relational workspace scope.
+Recoverable invalid configurations are isolated as safe per-widget `BROKEN` states without their
+JSON payloads. Essential metadata corruption fails safely. Reads do not perform global overlap
+audits or automatic repair. T-025 adds no endpoint, UI, DuckDB execution or dependency.
+
 ## 3. High-level architecture
 
 ```text
