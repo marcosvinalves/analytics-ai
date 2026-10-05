@@ -319,6 +319,34 @@ existing timestamp trigger records every accepted UPDATE, including a write whos
 current values. T-022 adds no widgets, semantic query, visualization, layout, analytical execution,
 HTTP endpoint or UI.
 
+### ADR-023 — VisualizationSpec & Recommendation
+
+Accepted for EPIC-04/T-023. See
+[ADR-023](adr/ADR-023-visualization-spec-recommendation.md).
+
+`VisualizationSpecV1` is a pure presentation contract for KPI, TABLE, BAR and LINE. Bindings use
+stable `{ role, key }` semantic output identities and never column position, label, physical name
+or SQL alias. A single compatibility matrix serves resolved pre-execution queries and effective
+post-execution result metadata without reading rows.
+
+Recommendation is deterministic and pre-execution only: numeric scalar queries suggest KPI,
+categorical groups suggest BAR, correctly ordered temporal groups suggest LINE, and every other
+valid shape falls back to TABLE. Visualization performs no analytical transformation, persistence,
+query execution or rendering in T-023.
+
+### ADR-024 — Typed Visualization Mapping
+
+Accepted for EPIC-04/T-024. See
+[ADR-024](adr/ADR-024-typed-visualization-mapping.md).
+
+`mapVisualization` is a pure boundary from `VisualizationSpecV1 + QueryResult + orderBy` to frozen
+typed ViewModels. It delegates POST compatibility to T-023, binds outputs by stable role and key,
+and preserves column order, row order, duplicates, NULL and authoritative QueryResult values.
+
+INTEGER and DECIMAL remain exact strings; NUMBER remains an approximate authoritative string. An
+optional finite `geometryValue` may be derived only for future rendering geometry. The mapper does
+not aggregate, filter, sort, format, parse temporal values, add result limits or perform I/O.
+
 ## 3. High-level architecture
 
 ```text
