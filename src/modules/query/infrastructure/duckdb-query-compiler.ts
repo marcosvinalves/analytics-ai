@@ -655,7 +655,7 @@ function literalValidation(
     for (const condition of conditions) {
       const resultAlias = `v${checks.length}`;
       selects.push(
-        `CASE WHEN ${condition.condition} THEN 1 ELSE 0 END AS ${quoteIdentifier(resultAlias)}`,
+        `CAST(CASE WHEN ${condition.condition} THEN 1 ELSE 0 END AS BIGINT) AS ${quoteIdentifier(resultAlias)}`,
       );
       checks.push({ resultAlias, failureCode: condition.failureCode });
     }

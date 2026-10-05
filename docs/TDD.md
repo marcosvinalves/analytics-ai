@@ -285,6 +285,26 @@ the Alpha, so QueryExplanation is not safe to log without a future external reda
 The builder reconstructs and deeply freezes its output. It returns deterministic, bounded issues
 for semantic or result inconsistencies and introduces no migration or dependency.
 
+### T-021 — Query Foundation Vertical Slice
+
+`runSemanticQuery(pool, { workspaceId, semanticModelId, query }, { signal })` is the internal,
+server-only application boundary for the complete Query Foundation. It parses untrusted semantic
+input, inspects only the current PUBLISHED revision, resolves its exact DatasetVersion and source,
+then delegates unchanged contracts to planning, DuckDB compilation, execution and explanation.
+The caller must already have authorized the workspace; workspace scoping here is not authentication.
+
+The inspection snapshot pins the semantic revision for that invocation. The same
+`ResolvedSemanticQuery` instance feeds physical planning and the final explanation, with no
+reinspection or latest-version lookup. PostgreSQL transactions remain local to inspection and
+source metadata reads and are closed before filesystem and DuckDB work. Successful output contains
+only `{ result, explanation }`.
+
+The application outcome is closed and uses fixed safe messages. Engine operational failure maps to
+`OPERATIONAL_FAILURE`; deterministic numeric overflow maps to `QUERY_EXECUTION_FAILED`. A source
+`NOT_READY` maps to `DATA_NOT_READY` only when it agrees with the inspected snapshot; disagreement
+between the two artifacts is `INCONSISTENT_QUERY_PIPELINE`. Semantic limit remains separate from
+the executor's row and byte safety caps. T-021 adds no migration, dependency, endpoint, UI or AI.
+
 ## 3. High-level architecture
 
 ```text

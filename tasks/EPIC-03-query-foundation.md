@@ -1,6 +1,6 @@
 # EPIC-03 — Query Foundation
 
-**Status:** T-020 IMPLEMENTED — AWAITING REVIEW
+**Status:** T-021 IMPLEMENTED — AWAITING REVIEW
 **Stage:** Technical Alpha
 
 ## Goal
@@ -122,6 +122,27 @@ QueryResult rows não são copiadas. PhysicalQueryPlan, CompiledQuery, SQL, Duck
 storage não entram na boundary. Valores completos de filtros tornam QueryExplanation inadequada
 para logging sem futura redaction externa. Não houve migration ou dependência. T-021 não foi
 iniciado.
+
+## T-021 — Query Foundation Vertical Slice
+
+`runSemanticQuery` orquestra, sem duplicar regras, a cadeia `unknown → parse → published inspection
+→ semantic resolution → exact DatasetVersion/source → physical plan → DuckDB compilation → real
+execution → typed result → explanation`. A mesma `ResolvedSemanticQuery` alimenta plan e
+explanation, preservando causalidade in-process sem receipt, hash ou execução persistida.
+
+A boundary retorna somente `{ result, explanation }` no sucesso e outcomes fechados com mensagens
+seguras em falha. PostgreSQL permanece metadata store, suas transações curtas terminam antes do
+filesystem/DuckDB, e o executor continua dono de timeout, cancellation e safety caps. O limit
+semântico não recebe default nem é confundido com o cap de 500 rows.
+
+A integração real usa PostgreSQL e DuckDB com uma fixture versionada de 20 linhas. Ela prova Revenue
+exato `2059.61` como DECIMAL(38,2), Revenue by City, DATE + IN + orderBy + limit, oracle independente
+em BigInt cents, erros seguros, cap de 501 grupos e ausência de mutations em metadata/raw. Não houve
+migration ou dependência. EPIC-04 não foi iniciado.
+
+O slice revelou que a validação de capacidade de literal declarava violation counts, mas o SQL do
+compiler produzia `INTEGER`. O contador passou a ser explicitamente `BIGINT`, alinhado ao contrato já
+consumido pelo executor, sem alterar AST, plano, API ou outcomes de T-018/T-019.
 
 ## Architecture boundary
 

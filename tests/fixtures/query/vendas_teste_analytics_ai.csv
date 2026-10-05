@@ -1,0 +1,21 @@
+data_venda,produto,categoria,cidade,quantidade,preco_unitario,receita
+2026-09-01,Arroz 5kg,Alimentos,São José dos Campos,3,24.9,74.7
+2026-09-01,Feijão 1kg,Alimentos,São José dos Campos,5,8.99,44.95
+2026-09-02,Peito de Frango,Carnes,São José dos Campos,8,19.9,159.2
+2026-09-02,Patinho,Carnes,Jacareí,4,39.9,159.6
+2026-09-03,Leite 1L,Laticínios,São José dos Campos,12,5.49,65.88
+2026-09-03,Queijo Mussarela,Laticínios,Jacareí,2,42.9,85.8
+2026-09-04,Café 500g,Alimentos,Taubaté,6,18.5,111.0
+2026-09-04,Ovos 30un,Alimentos,São José dos Campos,4,21.9,87.6
+2026-09-05,Peito de Frango,Carnes,Taubaté,10,20.5,205.0
+2026-09-05,Refrigerante 2L,Bebidas,Jacareí,7,8.49,59.43
+2026-09-06,Água Mineral,Bebidas,São José dos Campos,15,2.99,44.85
+2026-09-06,Patinho,Carnes,São José dos Campos,3,41.9,125.7
+2026-09-07,Arroz 5kg,Alimentos,Taubaté,5,25.5,127.5
+2026-09-07,Leite 1L,Laticínios,Jacareí,10,5.79,57.9
+2026-09-08,Café 500g,Alimentos,São José dos Campos,8,17.99,143.92
+2026-09-08,Queijo Mussarela,Laticínios,Taubaté,3,44.5,133.5
+2026-09-09,Feijão 1kg,Alimentos,Jacareí,6,9.29,55.74
+2026-09-09,Refrigerante 2L,Bebidas,São José dos Campos,9,7.99,71.91
+2026-09-10,Ovos 30un,Alimentos,Taubaté,5,22.5,112.5
+2026-09-10,Peito de Frango,Carnes,Jacareí,7,18.99,132.93
