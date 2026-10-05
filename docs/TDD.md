@@ -305,6 +305,20 @@ The application outcome is closed and uses fixed safe messages. Engine operation
 between the two artifacts is `INCONSISTENT_QUERY_PIPELINE`. Semantic limit remains separate from
 the executor's row and byte safety caps. T-021 adds no migration, dependency, endpoint, UI or AI.
 
+### ADR-022 — Dashboard Domain & Persistence
+
+Accepted for EPIC-04/T-022. See
+[ADR-022](adr/ADR-022-dashboard-persistence.md).
+
+Dashboard is a workspace-owned aggregate root persisted in PostgreSQL. Names are nonblank,
+trimmed, case-sensitive and unique within a Workspace. Every operation is scoped by `workspaceId`;
+scope enforcement here is metadata isolation, not authentication or authorization.
+
+CRUD uses single-statement autocommit and concurrent metadata updates use last-write-wins. The
+existing timestamp trigger records every accepted UPDATE, including a write whose values equal the
+current values. T-022 adds no widgets, semantic query, visualization, layout, analytical execution,
+HTTP endpoint or UI.
+
 ## 3. High-level architecture
 
 ```text
