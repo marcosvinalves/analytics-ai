@@ -37,6 +37,11 @@ test("sem JavaScript, formulário não permite submit nativo", async ({
 test("submit hidratado envia multipart por fetch e mostra sucesso sem navegação", async ({
   page,
 }) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text());
+  });
   let uploadCount = 0;
   await page.route(endpoint, async (route) => {
     const request = route.request();
@@ -90,6 +95,7 @@ test("submit hidratado envia multipart por fetch e mostra sucesso sem navegaçã
   await expect(page).toHaveURL(/\/data\/upload$/);
   expect(uploadCount).toBe(1);
   expect(navigations).toBe(0);
+  expect(browserErrors).toEqual([]);
 });
 
 test("erro seguro aparece no formulário sem navegação", async ({ page }) => {

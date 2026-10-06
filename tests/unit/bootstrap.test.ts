@@ -6,6 +6,6 @@ import Home from "../../src/app/page";
 test("a página inicial renderiza no servidor", () => {
   const html = renderToStaticMarkup(createElement(Home));
 
-  expect(html).toContain("<h1>Analytics AI</h1>");
-  expect(html).toContain("Technical Alpha");
+  expect(html).toContain("<h1>Início</h1>");
+  expect(html).toContain("Comece pelos seus dados");
 });

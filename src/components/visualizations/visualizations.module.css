@@ -1,10 +1,10 @@
 .kpi,
 .chart {
-  --visualization-primary: #2563eb;
-  --visualization-border: #d8e0eb;
-  --visualization-muted: #58677c;
-  color: #172033;
-  background: #ffffff;
+  --visualization-primary: var(--chart-series-1);
+  --visualization-border: var(--app-border);
+  --visualization-muted: var(--app-muted);
+  color: var(--app-text);
+  background: var(--app-surface);
 }
 
 .kpi {
@@ -12,9 +12,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 1.5rem;
-  border: 1px solid var(--visualization-border);
-  border-radius: 0.625rem;
+  padding: 0.5rem;
 }
 
 .kpiLabel,
@@ -50,9 +48,9 @@
 
 .tableViewport {
   overflow: auto;
-  border: 1px solid #d8e0eb;
+  border: 1px solid var(--app-border);
   border-radius: 0.5rem;
-  background: #ffffff;
+  background: var(--app-surface);
 }
 
 .tableVerticalViewport {
@@ -62,7 +60,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  color: #172033;
+  color: var(--app-text);
   font-size: 0.875rem;
 }
 
@@ -70,7 +68,7 @@
 .table td {
   min-width: 8rem;
   padding: 0.75rem;
-  border-bottom: 1px solid #e6ebf2;
+  border-bottom: 1px solid var(--app-border);
   text-align: left;
   vertical-align: top;
   white-space: pre-wrap;
@@ -81,8 +79,8 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #f3f6fa;
-  color: #344258;
+  background: var(--app-surface-subtle);
+  color: var(--app-text);
   font-weight: 650;
 }
 
@@ -111,10 +109,10 @@
   gap: 0.25rem;
   max-width: 18rem;
   padding: 0.625rem 0.75rem;
-  border: 1px solid #c8d2df;
+  border: 1px solid var(--app-border);
   border-radius: 0.375rem;
-  color: #172033;
-  background: #ffffff;
+  color: var(--app-text);
+  background: var(--app-surface);
   box-shadow: 0 0.25rem 0.75rem rgb(23 32 51 / 14%);
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
@@ -126,21 +124,11 @@
 
 .chartTableDisclosure summary {
   width: fit-content;
-  color: #1854a5;
+  color: var(--app-primary);
   cursor: pointer;
   font-weight: 600;
 }
 
 .chartTableDisclosure[open] summary {
   margin-bottom: 0.75rem;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chart *,
-  .chart *::before,
-  .chart *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
 }

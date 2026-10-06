@@ -1,36 +1,51 @@
 :root {
   --app-background: #f4f7fb;
   --app-surface: #ffffff;
+  --app-surface-subtle: #edf3fa;
   --app-text: #172033;
   --app-muted: #58677c;
   --app-border: #d8e0eb;
   --app-primary: #1854a5;
+  --app-primary-hover: #123f7d;
+  --app-on-primary: #ffffff;
+  --app-focus: #2b6fc1;
+  --app-success: #246b45;
+  --app-success-surface: #edf8f1;
   --app-attention: #8a5a00;
+  --app-attention-surface: #fff7e5;
   --app-danger: #9f2d2d;
+  --app-danger-surface: #fff0f0;
   --app-radius: 0.625rem;
+  --app-shadow: 0 0.15rem 0.4rem rgb(23 32 51 / 6%);
+  --chart-series-1: var(--app-primary);
   font-family: Arial, Helvetica, sans-serif;
   color: var(--app-text);
   background: var(--app-background);
 }
 
+* {
+  box-sizing: border-box;
+}
+html {
+  min-width: 20rem;
+  background: var(--app-background);
+}
 body {
+  min-height: 100vh;
   margin: 0;
-}
-
-main {
-  max-width: 60rem;
-  margin: 0 auto;
-  padding: 4rem 1.5rem;
-}
-
-.dataset-detail {
-  max-width: 80rem;
-}
-nav {
-  margin-bottom: 2rem;
+  color: var(--app-text);
+  background: var(--app-background);
 }
 a {
   color: var(--app-primary);
+}
+button,
+input {
+  font: inherit;
+}
+:focus-visible {
+  outline: 0.1875rem solid var(--app-focus);
+  outline-offset: 0.125rem;
 }
 
 .sr-only {
@@ -44,58 +59,14 @@ a {
   white-space: nowrap;
   border: 0;
 }
-section {
-  margin: 2rem 0;
-}
-.dataset-facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 1rem;
-}
-.dataset-facts dt {
-  color: #475569;
-  font-size: 0.875rem;
-}
-.dataset-facts dd {
-  margin: 0.3rem 0 0;
-  overflow-wrap: anywhere;
-}
-.data-table-scroll {
-  overflow-x: auto;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.4rem;
-  background: white;
-}
-.data-table-scroll table {
-  border-collapse: collapse;
-  width: 100%;
-  text-align: left;
-}
-.data-table-scroll th,
-.data-table-scroll td {
-  padding: 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
-  max-width: 28rem;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-.data-table-scroll thead {
-  background: #edf2f7;
-}
-.null-value {
-  color: #64748b;
-  font-style: italic;
-}
-.dataset-list {
-  list-style: none;
-  padding: 0;
-}
-.dataset-list li {
-  padding: 1rem 0;
-  border-bottom: 1px solid #cbd5e1;
-}
-.dataset-list span {
-  display: block;
-  margin-top: 0.4rem;
-  color: #475569;
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+  }
 }

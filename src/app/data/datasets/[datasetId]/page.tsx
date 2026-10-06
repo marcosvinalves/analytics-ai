@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { localUploadContext } from "@/lib/local-upload-context";
@@ -7,6 +6,7 @@ import { readDatasetMetadata } from "@/modules/dataset/infrastructure/read-datas
 import { readDatasetPreview } from "@/modules/dataset/infrastructure/read-dataset-preview";
 import type { DatasetMetadata } from "@/modules/dataset/domain/dataset-detail";
 import { DatasetDetailView } from "@/components/data/dataset-detail";
+import { PageContainer } from "@/components/layout/page-container";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,12 +29,7 @@ export default async function DatasetPage({
   });
   if (!metadata) notFound();
   return (
-    <main className="dataset-detail">
-      <nav aria-label="Navegação">
-        <Link href="/data">Dados</Link> ·{" "}
-        <Link href="/data/upload">Enviar CSV</Link>
-      </nav>
-      <p>Technical Alpha — inspeção local, somente leitura.</p>
+    <PageContainer wide>
       <Suspense
         fallback={
           <>
@@ -45,7 +40,7 @@ export default async function DatasetPage({
       >
         <PreviewDetail metadata={metadata} />
       </Suspense>
-    </main>
+    </PageContainer>
   );
 }
 

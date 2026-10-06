@@ -82,6 +82,12 @@ test("real READY dataset: navigation, schema, preview and no hydration errors", 
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      const location = message.location().url;
+      errors.push(`${message.text()}${location ? ` (${location})` : ""}`);
+    }
+  });
   await page.goto("/data");
   await page.getByRole("link", { name, exact: true }).first().click();
   await expect(page).toHaveURL(new RegExp(`/data/datasets/${datasetId}`));

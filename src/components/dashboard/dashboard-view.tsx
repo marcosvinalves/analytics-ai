@@ -8,6 +8,9 @@ import type { VisualizationViewModel } from "../../modules/dashboard/domain/visu
 import { VisualizationRenderer } from "../visualizations/visualization-renderer";
 import { ExplanationDrawer } from "./explanation-drawer";
 import { RefreshButton } from "./refresh-button";
+import { PageHeader } from "../ui/page-header";
+import { EmptyState } from "../ui/empty-state";
+import { InlineNotice } from "../ui/inline-notice";
 import styles from "./dashboard.module.css";
 
 type CompletedDashboard = Extract<
@@ -15,7 +18,11 @@ type CompletedDashboard = Extract<
   { status: "COMPLETED" | "CANCELLED" }
 >;
 
-type WidgetStyle = CSSProperties & { "--tablet-span": number };
+type WidgetStyle = CSSProperties & {
+  "--widget-column": string;
+  "--widget-row": string;
+  "--tablet-span": number;
+};
 
 type Message = Readonly<{
   title: string;
@@ -200,12 +207,12 @@ function WidgetCard({
   item: DashboardExecutionItem;
   positioned: boolean;
 }) {
-  const style = item.layout
+  const style: WidgetStyle | undefined = item.layout
     ? ({
-        gridColumn: `${item.layout.x + 1} / span ${item.layout.width}`,
-        gridRow: `${item.layout.y + 1} / span ${item.layout.height}`,
+        "--widget-column": `${item.layout.x + 1} / span ${item.layout.width}`,
+        "--widget-row": `${item.layout.y + 1} / span ${item.layout.height}`,
         "--tablet-span": Math.min(6, Math.ceil(item.layout.width / 2)),
-      } satisfies WidgetStyle)
+      } as WidgetStyle)
     : undefined;
   return (
     <article className={styles.widget} style={positioned ? style : undefined}>
@@ -228,31 +235,25 @@ export function DashboardView({
 
   return (
     <>
-      <nav className={styles.breadcrumb} aria-label="Breadcrumb">
-        <span>Início</span>
-        <span aria-hidden="true">/</span>
-        <span>Dashboard</span>
-      </nav>
-      <header className={styles.dashboardHeader}>
-        <div>
-          <h1>{name}</h1>
-          {description && <p>{description}</p>}
-        </div>
-        <RefreshButton />
-      </header>
+      <PageHeader
+        title={name}
+        description={description}
+        breadcrumbs={[{ label: "Início", href: "/" }, { label: "Dashboard" }]}
+        actions={<RefreshButton />}
+      />
 
       {execution.status === "CANCELLED" && (
-        <p className={styles.banner} role="status">
+        <InlineNotice tone="attention" role="status">
           A atualização foi interrompida. Os resultados concluídos foram
           preservados.
-        </p>
+        </InlineNotice>
       )}
 
       {execution.widgets.length === 0 ? (
-        <section className={styles.pageState} aria-labelledby="empty-dashboard">
-          <h2 id="empty-dashboard">Dashboard vazio</h2>
-          <p>Este Dashboard ainda não possui widgets.</p>
-        </section>
+        <EmptyState
+          title="Dashboard vazio"
+          description="Este Dashboard ainda não possui widgets."
+        />
       ) : (
         <>
           {positioned.length > 0 && (
@@ -291,14 +292,19 @@ export function DashboardFailure({
   inconsistent?: boolean;
 }) {
   return (
-    <section className={styles.pageState} role="alert">
-      <h1>Dashboard temporariamente indisponível</h1>
-      <p>
-        {inconsistent
-          ? "Não foi possível carregar este Dashboard com segurança."
-          : "Não foi possível carregar o Dashboard agora."}
-      </p>
-      <RefreshButton />
-    </section>
+    <>
+      <PageHeader
+        title="Dashboard temporariamente indisponível"
+        breadcrumbs={[{ label: "Início", href: "/" }, { label: "Dashboard" }]}
+      />
+      <InlineNotice tone="danger" role="alert">
+        <p>
+          {inconsistent
+            ? "Não foi possível carregar este Dashboard com segurança."
+            : "Não foi possível carregar o Dashboard agora."}
+        </p>
+        <RefreshButton />
+      </InlineNotice>
+    </>
   );
 }

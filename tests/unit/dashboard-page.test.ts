@@ -227,7 +227,7 @@ describe("Dashboard read-only presentation", () => {
     const before = JSON.stringify(input);
     const html = render(input);
     expect(html).toContain("Widgets que precisam de atenção");
-    expect(html).toContain("grid-column:3 / span 4");
+    expect(html).toContain("--widget-column:3 / span 4");
     expect(html).toContain("A atualização foi interrompida");
     expect(JSON.stringify(input)).toBe(before);
   });

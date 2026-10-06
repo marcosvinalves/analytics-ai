@@ -1,0 +1,23 @@
+.welcome {
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+}
+.welcome h2,
+.welcome p {
+  margin: 0;
+}
+.welcome p {
+  max-width: 42rem;
+  margin-top: 0.75rem;
+  color: var(--app-muted);
+  line-height: 1.6;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}

@@ -1,0 +1,137 @@
+.section {
+  margin-top: 2rem;
+}
+.section h2,
+.section p {
+  margin-top: 0;
+}
+.datasetList {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.datasetRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+.datasetName {
+  font-weight: 700;
+  text-decoration: none;
+}
+.datasetMeta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  color: var(--app-muted);
+  font-size: 0.875rem;
+}
+.form {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 42rem;
+  padding: 1.5rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+.field {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+.field label {
+  font-weight: 700;
+}
+.field input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--app-border);
+  border-radius: 0.45rem;
+  color: var(--app-text);
+  background: var(--app-surface);
+}
+.field input[type="file"] {
+  height: auto;
+}
+.formHelp {
+  margin: 0 0 1rem;
+  color: var(--app-muted);
+}
+.result {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.result h2,
+.result p {
+  margin: 0;
+}
+.result details {
+  margin-top: 0.5rem;
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+.facts div {
+  padding: 1rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+.facts dt {
+  color: var(--app-muted);
+  font-size: 0.875rem;
+}
+.facts dd {
+  margin: 0.3rem 0 0;
+  overflow-wrap: anywhere;
+}
+.tableScroll {
+  overflow-x: auto;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+.tableScroll table {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+  text-align: left;
+}
+.tableScroll th,
+.tableScroll td {
+  max-width: 28rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--app-border);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.tableScroll thead {
+  background: var(--app-surface-subtle);
+}
+.nullValue {
+  color: var(--app-muted);
+  font-style: italic;
+}
+@media (max-width: 39.999rem) {
+  .datasetRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .datasetMeta {
+    justify-content: flex-start;
+  }
+}

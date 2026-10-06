@@ -1,14 +1,25 @@
 import type { DatasetDetail } from "@/modules/dataset/domain/dataset-detail";
+import { PageHeader } from "../ui/page-header";
+import { StatusBadge } from "../ui/status-badge";
+import { InlineNotice } from "../ui/inline-notice";
+import styles from "./data.module.css";
 
 export function DatasetDetailView({ detail }: { detail: DatasetDetail }) {
   const { dataset, version, columns, preview } = detail;
   return (
     <>
-      <h1>{dataset.name}</h1>
-      {dataset.description && <p>{dataset.description}</p>}
-      <section aria-labelledby="overview-title">
+      <PageHeader
+        title={dataset.name}
+        description={dataset.description}
+        breadcrumbs={[
+          { label: "Dados", href: "/data" },
+          { label: dataset.name },
+        ]}
+        actions={<StatusBadge status={version.status} />}
+      />
+      <section className={styles.section} aria-labelledby="overview-title">
         <h2 id="overview-title">Visão geral</h2>
-        <dl className="dataset-facts">
+        <dl className={styles.facts}>
           <div>
             <dt>Status</dt>
             <dd>{version.status}</dd>
@@ -44,26 +55,26 @@ export function DatasetDetailView({ detail }: { detail: DatasetDetail }) {
         </dl>
       </section>
       {version.status === "PROCESSING" && (
-        <p role="status">
+        <InlineNotice tone="attention" role="status">
           Aguardando conclusão do processamento. Atualize a página após o
           processamento local explícito.
-        </p>
+        </InlineNotice>
       )}
       {version.status === "FAILED" && (
-        <p role="alert">
+        <InlineNotice tone="danger" role="alert">
           Não foi possível processar esta versão. O preview não está disponível.
-        </p>
+        </InlineNotice>
       )}
       {version.status === "READY" && (
         <>
-          <section aria-labelledby="schema-title">
+          <section className={styles.section} aria-labelledby="schema-title">
             <h2 id="schema-title">Schema</h2>
             <p>
               Tipos físicos detectados. “Desconhecido” não significa uma
               restrição NOT NULL.
             </p>
             <div
-              className="data-table-scroll"
+              className={styles.tableScroll}
               tabIndex={0}
               role="region"
               aria-label="Schema do dataset"
@@ -98,7 +109,7 @@ export function DatasetDetailView({ detail }: { detail: DatasetDetail }) {
               </table>
             </div>
           </section>
-          <section aria-labelledby="preview-title">
+          <section className={styles.section} aria-labelledby="preview-title">
             <h2 id="preview-title">Preview</h2>
             <p>
               Até 50 linhas, somente leitura. Sem filtros ou ordenação
@@ -113,7 +124,7 @@ export function DatasetDetailView({ detail }: { detail: DatasetDetail }) {
                 <>
                   <p>{preview.rows.length} linhas exibidas.</p>
                   <div
-                    className="data-table-scroll"
+                    className={styles.tableScroll}
                     tabIndex={0}
                     role="region"
                     aria-label="Linhas do preview"
@@ -134,7 +145,7 @@ export function DatasetDetailView({ detail }: { detail: DatasetDetail }) {
                             {row.map((cell) => (
                               <td key={cell.column}>
                                 {cell.value === null ? (
-                                  <span className="null-value">NULL</span>
+                                  <span className={styles.nullValue}>NULL</span>
                                 ) : cell.value === "" ? (
                                   <span aria-label="Texto vazio">“”</span>
                                 ) : (

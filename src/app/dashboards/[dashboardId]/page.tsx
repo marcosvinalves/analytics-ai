@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { AppShell } from "@/components/layout/app-shell";
 import {
   DashboardFailure,
   DashboardView,
@@ -31,12 +30,7 @@ export default async function DashboardPage(
   }
 
   if (dashboard.outcome === "NOT_FOUND") notFound();
-  if (dashboard.outcome === "OPERATIONAL_FAILURE")
-    return (
-      <AppShell>
-        <DashboardFailure />
-      </AppShell>
-    );
+  if (dashboard.outcome === "OPERATIONAL_FAILURE") return <DashboardFailure />;
 
   let execution: Awaited<ReturnType<typeof executeDashboard>>;
   try {
@@ -45,31 +39,23 @@ export default async function DashboardPage(
       dashboardId,
     });
   } catch {
-    return (
-      <AppShell>
-        <DashboardFailure />
-      </AppShell>
-    );
+    return <DashboardFailure />;
   }
 
   // A posterior NOT_FOUND invalidates all visual metadata read above.
   if (execution.status === "NOT_FOUND") notFound();
   if (execution.status === "OPERATIONAL_FAILURE")
     return (
-      <AppShell>
-        <DashboardFailure
-          inconsistent={execution.reason === "INCONSISTENT_DASHBOARD_METADATA"}
-        />
-      </AppShell>
+      <DashboardFailure
+        inconsistent={execution.reason === "INCONSISTENT_DASHBOARD_METADATA"}
+      />
     );
 
   return (
-    <AppShell>
-      <DashboardView
-        name={dashboard.dashboard.name}
-        description={dashboard.dashboard.description}
-        execution={execution}
-      />
-    </AppShell>
+    <DashboardView
+      name={dashboard.dashboard.name}
+      description={dashboard.dashboard.description}
+      execution={execution}
+    />
   );
 }

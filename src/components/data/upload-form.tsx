@@ -2,6 +2,9 @@
 
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import Link from "next/link";
+import { Button } from "../ui/action";
+import { InlineNotice } from "../ui/inline-notice";
+import styles from "./data.module.css";
 
 type UploadResult = {
   dataset: { id: string; name: string };
@@ -73,19 +76,19 @@ export function UploadForm({
 
   return (
     <>
-      <p>
+      <p className={styles.formHelp}>
         Selecione um CSV de até {(maxBytes / 1048576).toLocaleString("pt-BR")}{" "}
         MiB.
       </p>
       <form
+        className={styles.form}
         onSubmit={submit}
         action={endpoint}
         method="post"
         encType="multipart/form-data"
       >
-        <p>
+        <p className={styles.field}>
           <label htmlFor="dataset-name">Nome do dataset (opcional)</label>
-          <br />
           <input
             id="dataset-name"
             name="name"
@@ -93,9 +96,8 @@ export function UploadForm({
             disabled={disabled}
           />
         </p>
-        <p>
+        <p className={styles.field}>
           <label htmlFor="csv-file">Arquivo CSV</label>
-          <br />
           <input
             id="csv-file"
             name="file"
@@ -105,20 +107,29 @@ export function UploadForm({
             disabled={disabled}
           />
         </p>
-        <button type="submit" disabled={disabled}>
+        <Button type="submit" variant="primary" disabled={disabled}>
           {!hydrated
             ? "Preparando formulário…"
             : pending
               ? "Enviando…"
               : "Enviar CSV"}
-        </button>
+        </Button>
       </form>
       <noscript>
         Ative o JavaScript para enviar o CSV sem sair desta página.
       </noscript>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <InlineNotice tone="danger" role="alert">
+          {error}
+        </InlineNotice>
+      )}
       {result && (
-        <section role="status" aria-label="Upload concluído">
+        <InlineNotice
+          className={styles.result}
+          tone="success"
+          role="status"
+          aria-label="Upload concluído"
+        >
           <h2>Arquivo recebido e armazenado</h2>
           <p>Dataset: {result.dataset.name}</p>
           <p>Arquivo: {result.version.originalFilename}</p>
@@ -140,7 +151,7 @@ export function UploadForm({
             <p>Dataset: {result.dataset.id}</p>
             <p>Versão: {result.version.id}</p>
           </details>
-        </section>
+        </InlineNotice>
       )}
     </>
   );

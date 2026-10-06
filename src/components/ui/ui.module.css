@@ -1,0 +1,144 @@
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+.pageHeader h1,
+.pageHeader p,
+.emptyState h2,
+.emptyState p,
+.notice h2,
+.notice p {
+  margin: 0;
+}
+.pageHeader h1 {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  letter-spacing: -0.025em;
+}
+.pageHeader p {
+  max-width: 60rem;
+  margin-top: 0.5rem;
+  color: var(--app-muted);
+}
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--app-muted);
+  font-size: 0.875rem;
+}
+.breadcrumbs a {
+  color: inherit;
+}
+.actions {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.action {
+  min-height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  cursor: pointer;
+  font-weight: 700;
+  text-decoration: none;
+}
+.action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.primary {
+  color: var(--app-on-primary);
+  background: var(--app-primary);
+}
+.primary:hover {
+  background: var(--app-primary-hover);
+}
+.secondary {
+  color: var(--app-text);
+  border-color: var(--app-border);
+  background: var(--app-surface);
+}
+.ghost {
+  color: var(--app-primary);
+  background: transparent;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+.ready {
+  color: var(--app-success);
+  background: var(--app-success-surface);
+}
+.processing {
+  color: var(--app-attention);
+  background: var(--app-attention-surface);
+}
+.failed {
+  color: var(--app-danger);
+  background: var(--app-danger-surface);
+}
+.neutral {
+  color: var(--app-muted);
+  background: var(--app-surface-subtle);
+}
+.notice {
+  padding: 1rem;
+  border: 1px solid var(--app-border);
+  border-left-width: 0.25rem;
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+.notice p + p {
+  margin-top: 0.5rem;
+}
+.info {
+  border-left-color: var(--app-primary);
+}
+.success {
+  border-left-color: var(--app-success);
+  background: var(--app-success-surface);
+}
+.attention {
+  border-left-color: var(--app-attention);
+  background: var(--app-attention-surface);
+}
+.danger {
+  border-left-color: var(--app-danger);
+  background: var(--app-danger-surface);
+}
+.emptyState {
+  padding: 2rem;
+  border: 1px dashed var(--app-border);
+  border-radius: var(--app-radius);
+  text-align: center;
+  background: var(--app-surface);
+}
+.emptyState p {
+  margin: 0.6rem 0 1rem;
+  color: var(--app-muted);
+}
+
+@media (max-width: 39.999rem) {
+  .pageHeader {
+    display: grid;
+  }
+  .actions,
+  .actions > * {
+    width: 100%;
+  }
+}

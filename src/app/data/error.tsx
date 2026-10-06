@@ -1,12 +1,22 @@
 "use client";
+
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { ActionLink } from "@/components/ui/action";
+import { InlineNotice } from "@/components/ui/inline-notice";
+
 export default function DataError() {
   return (
-    <main>
-      <h1>Dados indisponíveis</h1>
-      <p role="alert">
-        Não foi possível carregar os dados agora. Tente novamente mais tarde.
-      </p>
-      <a href="/data">Voltar para Dados</a>
-    </main>
+    <PageContainer>
+      <PageHeader title="Dados indisponíveis" />
+      <InlineNotice tone="danger" role="alert">
+        <p>
+          Não foi possível carregar os dados agora. Tente novamente mais tarde.
+        </p>
+        <p>
+          <ActionLink href="/data">Voltar para Dados</ActionLink>
+        </p>
+      </InlineNotice>
+    </PageContainer>
   );
 }

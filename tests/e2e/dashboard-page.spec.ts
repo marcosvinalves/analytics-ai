@@ -35,6 +35,7 @@ const physicalColumns = [
 let pool: Pool;
 let dashboardId: string;
 let crossWorkspaceDashboardId: string;
+let datasetId: string;
 let rawPath: string;
 let metadataBefore: string;
 let rawHashBefore: string;
@@ -131,6 +132,7 @@ test.beforeAll(async () => {
   );
 
   const source = await createReadyDataset("Vendas E2E", true);
+  datasetId = source.datasetId;
   rawPath = source.filename;
   const draft = await createSemanticModelDraft(pool, {
     workspaceId,
@@ -352,6 +354,9 @@ test("consome Dashboard real, estados, explicação e refresh", async ({
 }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text());
+  });
   await page.goto(`/dashboards/${dashboardId}`);
 
   await expect(
@@ -408,6 +413,155 @@ test("consome Dashboard real, estados, explicação e refresh", async ({
   expect(browserErrors).toEqual([]);
 });
 
+test("mantém um único shell nas rotas reais e a navegação ativa", async ({
+  page,
+}) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text());
+  });
+  const routes = [
+    { path: "/", active: "Início" },
+    { path: "/data", active: "Dados" },
+    { path: "/data/upload", active: "Dados" },
+    { path: `/data/datasets/${datasetId}`, active: "Dados" },
+    { path: `/dashboards/${dashboardId}`, active: null },
+  ];
+  for (const route of routes) {
+    await page.goto(route.path);
+    await expect(page.locator("[data-app-shell]")).toHaveCount(1);
+    await expect(page.locator("main")).toHaveCount(1);
+    await expect(page.locator("[data-primary-navigation]")).toHaveCount(1);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expect(
+      page.locator('[data-primary-navigation] [aria-current="page"]'),
+    ).toHaveCount(route.active ? 1 : 0);
+    if (route.active)
+      await expect(
+        page.locator('[data-primary-navigation] [aria-current="page"]'),
+      ).toHaveText(route.active);
+  }
+  expect(browserErrors).toEqual([]);
+});
+
+test("aplica a geometria desktop e mobile do shell e do Dashboard", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/dashboards/${dashboardId}`);
+  const desktop = await page.evaluate(() => {
+    const topbar = document.querySelector("[data-app-shell] > header")!;
+    const nav = document.querySelector("[data-primary-navigation]")!;
+    const grid = document.querySelector('[aria-label="Widgets do Dashboard"]')!;
+    return {
+      topbarHeight: Math.round(topbar.getBoundingClientRect().height),
+      navWidth: Math.round(nav.getBoundingClientRect().width),
+      gridColumns: getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+    };
+  });
+  expect(desktop).toEqual({ topbarHeight: 56, navWidth: 224, gridColumns: 12 });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobile = await page.evaluate(() => {
+    const topbar = document.querySelector("[data-app-shell] > header")!;
+    const nav = document.querySelector("[data-primary-navigation]")!;
+    const content = document.querySelector("main")!;
+    return {
+      topbarHeight: Math.round(topbar.getBoundingClientRect().height),
+      navDirection: getComputedStyle(nav).flexDirection,
+      contentPadding: getComputedStyle(content).paddingLeft,
+    };
+  });
+  expect(mobile).toEqual({
+    topbarHeight: 52,
+    navDirection: "row",
+    contentPadding: "16px",
+  });
+});
+
+test("renderiza a loading boundary uma vez dentro do shell", async ({
+  page,
+}) => {
+  const navigation = page.goto(`/dashboards/${dashboardId}`, {
+    waitUntil: "commit",
+  });
+  await expect(
+    page.getByRole("heading", { name: "Carregando Dashboard…" }),
+  ).toBeVisible();
+  await expect(page.locator("[data-app-shell]")).toHaveCount(1);
+  await expect(page.locator("main")).toHaveCount(1);
+  await expect(page.locator("[data-primary-navigation]")).toHaveCount(1);
+  await navigation;
+  await expect(
+    page.getByRole("heading", { name: "Visão comercial E2E" }),
+  ).toBeVisible();
+});
+
+test("renderiza a error boundary uma vez dentro do shell", async ({ page }) => {
+  await page.addInitScript(() => {
+    class FailingResizeObserver {
+      constructor() {
+        throw new Error("forced browser-only ResizeObserver failure");
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    Object.defineProperty(window, "ResizeObserver", {
+      configurable: true,
+      value: FailingResizeObserver,
+    });
+  });
+  await page.goto(`/dashboards/${dashboardId}`);
+  await expect(
+    page.getByRole("heading", {
+      name: "Dashboard temporariamente indisponível",
+    }),
+  ).toBeVisible();
+  await expect(page.locator("[data-app-shell]")).toHaveCount(1);
+  await expect(page.locator("main")).toHaveCount(1);
+  await expect(page.locator("[data-primary-navigation]")).toHaveCount(1);
+});
+
+test("mantém Home, Dados, Upload e Dataset utilizáveis no mobile", async ({
+  page,
+}) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text());
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Início" })).toBeVisible();
+  await page.goto("/data");
+  await expect(page.getByRole("heading", { name: "Dados" })).toBeVisible();
+  await expect(page.getByText("Pronto", { exact: true }).first()).toBeVisible();
+  await page.goto("/data/upload");
+  await expect(page.getByRole("heading", { name: "Enviar CSV" })).toBeVisible();
+  await expect(page.getByLabel("Arquivo CSV")).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Breadcrumb" }),
+  ).toBeVisible();
+  await page.goto(`/data/datasets/${datasetId}`);
+  const preview = page.getByRole("region", { name: "Linhas do preview" });
+  await expect(preview).toBeVisible();
+  expect(
+    await preview.evaluate(
+      (element) => element.scrollWidth > element.clientWidth,
+    ),
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  expect(browserErrors).toEqual([]);
+});
+
 test("projeta os cards em stack no mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/dashboards/${dashboardId}`);
@@ -432,4 +586,6 @@ test("mantém NOT_FOUND cross-workspace terminal e opaco", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("Segredo cross-workspace")).toHaveCount(0);
   await expect(page.getByText("Não revelar")).toHaveCount(0);
+  await expect(page.locator("[data-app-shell]")).toHaveCount(1);
+  await expect(page.locator("main")).toHaveCount(1);
 });

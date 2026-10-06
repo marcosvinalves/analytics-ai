@@ -1,18 +1,24 @@
 "use client";
 
-import { AppShell } from "@/components/layout/app-shell";
-import styles from "@/components/dashboard/dashboard.module.css";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/action";
+import { InlineNotice } from "@/components/ui/inline-notice";
 
 export default function DashboardError({ reset }: { reset: () => void }) {
   return (
-    <AppShell>
-      <section className={styles.pageState} role="alert">
-        <h1>Dashboard temporariamente indisponível</h1>
+    <>
+      <PageHeader
+        title="Dashboard temporariamente indisponível"
+        breadcrumbs={[{ label: "Início", href: "/" }, { label: "Dashboard" }]}
+      />
+      <InlineNotice tone="danger" role="alert">
         <p>Não foi possível carregar o Dashboard agora.</p>
-        <button type="button" onClick={reset}>
-          Tentar novamente
-        </button>
-      </section>
-    </AppShell>
+        <p>
+          <Button type="button" onClick={reset}>
+            Tentar novamente
+          </Button>
+        </p>
+      </InlineNotice>
+    </>
   );
 }
