@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "test:upload-ui": "playwright test upload-form.spec.ts",
     "test:preview-ui": "node --env-file-if-exists=.env.local node_modules/@playwright/test/cli.js test dataset-detail.spec.ts",
+    "test:dashboard-ui": "node --env-file-if-exists=.env.local --conditions=react-server node_modules/@playwright/test/cli.js test --config playwright.dashboard.config.ts",
     "test:preview-runtime": "node scripts/tests/preview-runtime.mjs",
     "spike:duckdb": "node --env-file-if-exists=.env.local scripts/spikes/duckdb/run.ts",
     "dataset:process": "node --env-file-if-exists=.env.local --conditions=react-server scripts/dataset/process.ts",
@@ -34,6 +35,8 @@
     "pg": "8.23.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "react-is": "19.3.0",
+    "recharts": "3.10.1",
     "server-only": "0.0.1"
   },
   "devDependencies": {

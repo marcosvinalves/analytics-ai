@@ -363,6 +363,79 @@ Recoverable invalid configurations are isolated as safe per-widget `BROKEN` stat
 JSON payloads. Essential metadata corruption fails safely. Reads do not perform global overlap
 audits or automatic repair. T-025 adds no endpoint, UI, DuckDB execution or dependency.
 
+### ADR-026 — Widget Execution
+
+Accepted for EPIC-04/T-026. See
+[ADR-026](adr/ADR-026-widget-execution.md).
+
+`executeDashboardWidget` reads one workspace-scoped persisted Widget, obtains its authoritative
+SemanticModel, SemanticQuery and VisualizationSpec, executes only through `runSemanticQuery`, and
+maps only through `mapVisualization`. Its closed outcome distinguishes SUCCESS, EMPTY, BROKEN,
+NOT_FOUND, ERROR and CANCELLED. SUCCESS and EMPTY preserve the ViewModel and QueryExplanation but
+do not expose QueryResult.
+
+BROKEN is limited to proven configuration invalidity or visualization incompatibility.
+`QUERY_NOT_SUPPORTED` remains ERROR because Query Foundation currently aggregates semantic and
+physical capability causes. The same AbortSignal reaches Query Foundation. Execution is read-only
+for metadata and raw storage and introduces no migration, dependency, cache, long transaction,
+endpoint or UI.
+
+### ADR-027 — Dashboard Execution
+
+Accepted for EPIC-04/T-027. See
+[ADR-027](adr/ADR-027-dashboard-execution.md).
+
+`executeDashboard` discovers one workspace-scoped Dashboard through the existing ordered Widget
+list and executes every initially discovered Widget only through `executeDashboardWidget`. A local
+two-worker pool bounds concurrency per invocation while an indexed result array preserves the
+initial `layout_y, layout_x, id` order and layout snapshot.
+
+Individual SUCCESS, EMPTY, BROKEN, ERROR, NOT_FOUND and CANCELLED outcomes are isolated. The
+Dashboard is COMPLETED when coordination finishes normally, including when one Widget is
+CANCELLED. The top-level is CANCELLED only when its own AbortSignal is observed aborted; in-flight
+work is awaited and unstarted discovered Widgets receive deterministic CANCELLED results. The
+orchestrator is read-only and adds no Query Foundation path, persistence, cache, retry, long
+transaction, migration, dependency, endpoint or UI.
+
+### ADR-028 — Visualization Renderer & Chart Library
+
+Accepted during T-028. See
+[ADR-028](adr/ADR-028-visualization-renderer-chart-library.md).
+
+`VisualizationRenderer` consumes only the frozen T-024 ViewModels and dispatches KPI, TABLE, BAR
+or LINE. KPI, TABLE, chart wrappers and the complete accessible fallback remain server-renderable;
+only the BAR and LINE charts are Client Components. Recharts 3.10.1 was selected through a real
+Next.js 16.3.5 + React 19.3.0 production build/runtime spike.
+
+INTEGER and DECIMAL display comes directly from authoritative strings, preserving precision and
+trailing zeroes. NUMBER remains visibly approximate. `geometryValue` is only a finite chart
+coordinate and never reconstructs displayed content. An authoritative value without geometry is
+valid: BAR draws no artificial bar, LINE leaves a gap, and the accessible table retains the full
+value. NULL never becomes zero. Rendering performs no analytical transformation or I/O.
+
+### ADR-029 — Dashboard Read-Only Consumption Experience
+
+Accepted during T-029. See
+[ADR-029](adr/ADR-029-dashboard-read-only-experience.md).
+
+`/dashboards/[dashboardId]` is a force-dynamic Node Server Component route. It reads only Dashboard
+name and description through the workspace-scoped metadata operation and executes Widgets only
+through `executeDashboard`. An execution-time `NOT_FOUND` is terminal and invalidates metadata read
+earlier. The development workspace ID stays server-side for exposure minimization; isolation comes
+from workspace-scoped application boundaries, and the local scaffold is not authentication or
+authorization.
+
+Desktop projects the persisted 12-column layout through CSS Grid. Tablet and mobile provide
+read-only responsive projections without persistence; null layouts appear in a separate attention
+area. Widget context uses only existing ViewModel labels because no Widget title is persisted.
+SUCCESS and EMPTY reuse `VisualizationRenderer`; other outcomes use safe human states without raw
+reason codes or infrastructure details.
+
+The page remains server-rendered. Only `router.refresh()` feedback and the native-dialog
+QueryExplanation drawer add Client Component boundaries, in addition to T-028 BAR/LINE charts.
+Loading represents aggregate Dashboard execution and does not imply Widget streaming. T-029 adds
+no product mutation, endpoint, Server Action, migration, dependency, auth or editing flow.
+
 ## 3. High-level architecture
 
 ```text

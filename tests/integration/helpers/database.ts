@@ -12,9 +12,20 @@ export function testDatabaseUrl(): string {
       "TEST_DATABASE_URL é obrigatória; integração não foi executada.",
     );
   getDatabaseConfig(value);
-  const name = decodeURIComponent(new URL(value).pathname.slice(1));
+  const parsed = new URL(value);
+  const name = decodeURIComponent(parsed.pathname.slice(1));
+  if (parsed.port !== "5433")
+    throw new Error(
+      "PostgreSQL de teste deve usar exclusivamente a porta 5433.",
+    );
   if (!name.endsWith("_test"))
     throw new Error("O database de integração deve terminar em _test.");
+  if (
+    ["postgres", "smartcompra", "analytics_metadata"].includes(
+      name.toLowerCase(),
+    )
+  )
+    throw new Error("Database informado não é descartável para integração.");
   if (
     process.env.DATABASE_URL &&
     decodeURIComponent(new URL(process.env.DATABASE_URL).pathname.slice(1)) ===
@@ -42,6 +53,11 @@ export async function connectTestDatabase(): Promise<Client> {
         "O database conectado difere do database de teste solicitado.",
       );
     }
+    const version = await client.query<{ version: string }>(
+      "SELECT current_setting('server_version') AS version",
+    );
+    if (version.rows[0].version !== "18.6")
+      throw new Error("Testes exigem PostgreSQL server_version 18.6.");
     return client;
   } catch (error) {
     await client.end();
