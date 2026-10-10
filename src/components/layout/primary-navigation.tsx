@@ -4,7 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./app-shell.module.css";
 
-export function isNavigationActive(pathname: string, href: "/" | "/data") {
+export function isNavigationActive(
+  pathname: string,
+  href: "/" | "/data" | "/dashboards",
+) {
   return href === "/"
     ? pathname === "/"
     : pathname === href || pathname.startsWith(`${href}/`);
@@ -13,6 +16,7 @@ export function isNavigationActive(pathname: string, href: "/" | "/data") {
 const links = [
   { href: "/" as const, label: "Início" },
   { href: "/data" as const, label: "Dados" },
+  { href: "/dashboards" as const, label: "Dashboards" },
 ];
 
 export function PrimaryNavigation() {

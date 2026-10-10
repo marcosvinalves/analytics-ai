@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { Pool } from "pg";
@@ -39,6 +39,9 @@ let datasetId: string;
 let rawPath: string;
 let metadataBefore: string;
 let rawHashBefore: string;
+let seedDashboardFixture: () => Promise<void>;
+
+test.describe.configure({ mode: "serial" });
 
 async function sha256(filename: string): Promise<string> {
   return createHash("sha256")
@@ -74,7 +77,11 @@ async function metadataSnapshot(): Promise<string> {
   );
 }
 
-async function createReadyDataset(name: string, withColumns: boolean) {
+async function createReadyDataset(
+  name: string,
+  withColumns: boolean,
+  withNullCity = false,
+) {
   const datasetId = (
     await pool.query<{ id: string }>(
       "INSERT INTO app.datasets(workspace_id,name) VALUES($1,$2) RETURNING id",
@@ -83,10 +90,18 @@ async function createReadyDataset(name: string, withColumns: boolean) {
   ).rows[0].id;
   const versionId = randomUUID();
   const storageKey = rawStorageKey(workspaceId, versionId);
-  const bytes = await readFile(fixturePath);
+  const original = await readFile(fixturePath);
+  const bytes = withNullCity
+    ? Buffer.from(
+        original
+          .toString("utf8")
+          .replace(",São José dos Campos,3,24.9,", ",,3,24.9,"),
+      )
+    : original;
   const filename = path.join(storageRoot, storageKey);
   await mkdir(path.dirname(filename), { recursive: true });
-  await copyFile(fixturePath, filename);
+  if (withNullCity) await writeFile(filename, bytes);
+  else await copyFile(fixturePath, filename);
   await pool.query(
     `INSERT INTO app.dataset_versions
       (id,dataset_id,version_number,source_type,storage_namespace,storage_key,original_filename,size_bytes)
@@ -131,7 +146,7 @@ test.beforeAll(async () => {
     [workspaceId, organizationId],
   );
 
-  const source = await createReadyDataset("Vendas E2E", true);
+  const source = await createReadyDataset("Vendas E2E", true, true);
   datasetId = source.datasetId;
   rawPath = source.filename;
   const draft = await createSemanticModelDraft(pool, {
@@ -202,151 +217,218 @@ test.beforeAll(async () => {
   if (published.outcome !== "PUBLISHED")
     throw new Error("Fixture publication failed");
 
-  const dashboard = await createDashboard(pool, {
-    workspaceId,
-    name: "Visão comercial E2E",
-    description: "Indicadores reais do fluxo de vendas.",
-  });
-  if (dashboard.outcome !== "CREATED")
-    throw new Error("Fixture dashboard failed");
-  dashboardId = dashboard.dashboard.id;
+  seedDashboardFixture = async () => {
+    const dashboard = await createDashboard(pool, {
+      workspaceId,
+      name: "Visão comercial E2E",
+      description: "Indicadores reais do fluxo de vendas.",
+    });
+    if (dashboard.outcome !== "CREATED")
+      throw new Error("Fixture dashboard failed");
+    dashboardId = dashboard.dashboard.id;
 
-  const revenue = metric.metric.metricKey;
-  const city = fieldKeys.get("city")!;
-  const date = fieldKeys.get("date")!;
-  const definitions = [
-    {
-      query: { version: 1, metrics: [revenue] },
-      spec: {
-        version: 1,
-        type: "KPI",
-        value: { role: "METRIC", key: revenue },
+    const revenue = metric.metric.metricKey;
+    const city = fieldKeys.get("city")!;
+    const date = fieldKeys.get("date")!;
+    const definitions = [
+      {
+        query: { version: 1, metrics: [revenue] },
+        spec: {
+          version: 1,
+          type: "KPI",
+          value: { role: "METRIC", key: revenue },
+        },
+        layout: { x: 0, y: 0, width: 3, height: 2 },
       },
-      layout: { x: 0, y: 0, width: 3, height: 2 },
-    },
-    {
-      query: { version: 1, metrics: [revenue], dimensions: [city] },
-      spec: { version: 1, type: "TABLE" },
-      layout: { x: 3, y: 0, width: 3, height: 2 },
-    },
-    {
-      query: { version: 1, metrics: [revenue], dimensions: [city] },
-      spec: {
-        version: 1,
-        type: "BAR",
-        category: { role: "DIMENSION", key: city },
-        value: { role: "METRIC", key: revenue },
+      {
+        query: {
+          version: 1,
+          metrics: [revenue],
+          dimensions: [city],
+          orderBy: [
+            { target: { kind: "DIMENSION", fieldKey: city }, direction: "ASC" },
+          ],
+        },
+        spec: { version: 1, type: "TABLE" },
+        layout: { x: 3, y: 0, width: 3, height: 2 },
       },
-      layout: { x: 6, y: 0, width: 3, height: 2 },
-    },
-    {
-      query: {
-        version: 1,
-        metrics: [revenue],
-        dimensions: [date],
-        orderBy: [
-          { target: { kind: "DIMENSION", fieldKey: date }, direction: "ASC" },
-        ],
+      {
+        query: { version: 1, metrics: [revenue], dimensions: [city] },
+        spec: {
+          version: 1,
+          type: "BAR",
+          category: { role: "DIMENSION", key: city },
+          value: { role: "METRIC", key: revenue },
+        },
+        layout: { x: 6, y: 0, width: 3, height: 2 },
       },
-      spec: {
-        version: 1,
-        type: "LINE",
-        x: { role: "DIMENSION", key: date },
-        y: { role: "METRIC", key: revenue },
+      {
+        query: {
+          version: 1,
+          metrics: [revenue],
+          dimensions: [date],
+          orderBy: [
+            { target: { kind: "DIMENSION", fieldKey: date }, direction: "ASC" },
+          ],
+        },
+        spec: {
+          version: 1,
+          type: "LINE",
+          x: { role: "DIMENSION", key: date },
+          y: { role: "METRIC", key: revenue },
+        },
+        layout: { x: 9, y: 0, width: 3, height: 2 },
       },
-      layout: { x: 9, y: 0, width: 3, height: 2 },
-    },
-    {
-      query: {
-        version: 1,
-        metrics: [revenue],
-        dimensions: [city],
-        filters: [
-          {
-            fieldKey: city,
-            op: "EQ",
-            value: { type: "STRING", value: "Cidade inexistente" },
-          },
-        ],
+      {
+        query: {
+          version: 1,
+          metrics: [revenue],
+          dimensions: [city],
+          filters: [
+            {
+              fieldKey: city,
+              op: "EQ",
+              value: { type: "STRING", value: "Cidade inexistente" },
+            },
+          ],
+        },
+        spec: { version: 1, type: "TABLE" },
+        layout: { x: 0, y: 2, width: 4, height: 2 },
       },
-      spec: { version: 1, type: "TABLE" },
-      layout: { x: 0, y: 2, width: 4, height: 2 },
-    },
-  ] as const;
+    ] as const;
 
-  for (const definition of definitions) {
-    const created = await createDashboardWidget(pool, {
+    for (const definition of definitions) {
+      const created = await createDashboardWidget(pool, {
+        workspaceId,
+        dashboardId,
+        semanticModelId: draft.model.id,
+        semanticQuery: definition.query,
+        visualizationSpec: definition.spec,
+        layout: definition.layout,
+      });
+      if (created.outcome !== "CREATED")
+        throw new Error("Fixture widget failed");
+    }
+
+    const broken = await createDashboardWidget(pool, {
       workspaceId,
       dashboardId,
       semanticModelId: draft.model.id,
-      semanticQuery: definition.query,
-      visualizationSpec: definition.spec,
-      layout: definition.layout,
+      semanticQuery: { version: 1, metrics: [revenue] },
+      visualizationSpec: { version: 1, type: "TABLE" },
+      layout: { x: 4, y: 2, width: 4, height: 2 },
     });
-    if (created.outcome !== "CREATED") throw new Error("Fixture widget failed");
-  }
+    if (broken.outcome !== "CREATED")
+      throw new Error("Fixture broken widget failed");
+    await pool.query(
+      "ALTER TABLE app.dashboard_widgets DROP CONSTRAINT dashboard_widgets_layout_width_check",
+    );
+    await pool.query(
+      "UPDATE app.dashboard_widgets SET layout_width=0 WHERE id=$1",
+      [broken.widget.id],
+    );
 
-  const broken = await createDashboardWidget(pool, {
-    workspaceId,
-    dashboardId,
-    semanticModelId: draft.model.id,
-    semanticQuery: { version: 1, metrics: [revenue] },
-    visualizationSpec: { version: 1, type: "TABLE" },
-    layout: { x: 4, y: 2, width: 4, height: 2 },
-  });
-  if (broken.outcome !== "CREATED")
-    throw new Error("Fixture broken widget failed");
-  await pool.query(
-    "ALTER TABLE app.dashboard_widgets DROP CONSTRAINT dashboard_widgets_layout_width_check",
-  );
-  await pool.query(
-    "UPDATE app.dashboard_widgets SET layout_width=0 WHERE id=$1",
-    [broken.widget.id],
-  );
+    const unpublishedSource = await createReadyDataset(
+      "Vendas não publicadas",
+      true,
+    );
+    const unpublished = await createSemanticModelDraft(pool, {
+      workspaceId,
+      datasetId: unpublishedSource.datasetId,
+      datasetVersionId: unpublishedSource.versionId,
+      modelName: "unpublished_e2e",
+      label: "Modelo não publicado",
+    });
+    if (unpublished.outcome !== "CREATED")
+      throw new Error("Fixture unpublished model failed");
+    const errorWidget = await createDashboardWidget(pool, {
+      workspaceId,
+      dashboardId,
+      semanticModelId: unpublished.model.id,
+      semanticQuery: { version: 1, metrics: [revenue] },
+      visualizationSpec: { version: 1, type: "TABLE" },
+      layout: { x: 8, y: 2, width: 4, height: 2 },
+    });
+    if (errorWidget.outcome !== "CREATED")
+      throw new Error("Fixture error widget failed");
 
-  const unpublishedSource = await createReadyDataset(
-    "Vendas não publicadas",
-    true,
-  );
-  const unpublished = await createSemanticModelDraft(pool, {
-    workspaceId,
-    datasetId: unpublishedSource.datasetId,
-    datasetVersionId: unpublishedSource.versionId,
-    modelName: "unpublished_e2e",
-    label: "Modelo não publicado",
-  });
-  if (unpublished.outcome !== "CREATED")
-    throw new Error("Fixture unpublished model failed");
-  const errorWidget = await createDashboardWidget(pool, {
-    workspaceId,
-    dashboardId,
-    semanticModelId: unpublished.model.id,
-    semanticQuery: { version: 1, metrics: [revenue] },
-    visualizationSpec: { version: 1, type: "TABLE" },
-    layout: { x: 8, y: 2, width: 4, height: 2 },
-  });
-  if (errorWidget.outcome !== "CREATED")
-    throw new Error("Fixture error widget failed");
-
-  crossWorkspaceDashboardId = (
-    await pool.query<{ id: string }>(
-      `INSERT INTO app.dashboards(workspace_id,name,description)
+    crossWorkspaceDashboardId = (
+      await pool.query<{ id: string }>(
+        `INSERT INTO app.dashboards(workspace_id,name,description)
        VALUES('30000000-0000-4000-8000-000000000029','Segredo cross-workspace','Não revelar') RETURNING id`,
-    )
-  ).rows[0].id;
-  metadataBefore = await metadataSnapshot();
-  rawHashBefore = await sha256(rawPath);
+      )
+    ).rows[0].id;
+    metadataBefore = await metadataSnapshot();
+    rawHashBefore = await sha256(rawPath);
+  };
 });
 
 test.afterAll(async () => {
   try {
-    expect(await metadataSnapshot()).toBe(metadataBefore);
-    expect(await sha256(rawPath)).toBe(rawHashBefore);
+    if (metadataBefore) expect(await metadataSnapshot()).toBe(metadataBefore);
+    if (rawHashBefore) expect(await sha256(rawPath)).toBe(rawHashBefore);
   } finally {
     await pool?.end();
     await rm(storageRoot, { recursive: true, force: true });
     await resetTestDatabase();
   }
+});
+
+test("descobre estado vazio e Dashboard real sem revelar outro workspace", async ({
+  page,
+}) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text());
+  });
+
+  await page.goto("/dashboards");
+  await expect(
+    page.getByRole("heading", { name: "Nenhum dashboard disponível" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/criação pela interface ainda não está disponível/i),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Criar dashboard/i }),
+  ).toHaveCount(0);
+
+  await seedDashboardFixture();
+  await page.goto("/dashboards");
+  await expect(
+    page.getByRole("heading", { name: "Dashboards", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Visão comercial E2E" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Indicadores reais do fluxo de vendas."),
+  ).toBeVisible();
+  await expect(page.getByText("Segredo cross-workspace")).toHaveCount(0);
+  await expect(
+    page.locator('[data-primary-navigation] [aria-current="page"]'),
+  ).toHaveText("Dashboards");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  await expect(
+    page.locator("li").filter({ hasText: "Visão comercial E2E" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Abrir →" }).click();
+  await expect(page).toHaveURL(new RegExp(`/dashboards/${dashboardId}$`));
+  await expect(
+    page.getByRole("heading", { name: "Visão comercial E2E" }),
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-primary-navigation] [aria-current="page"]'),
+  ).toHaveText("Dashboards");
+  expect(browserErrors).toEqual([]);
 });
 
 test("consome Dashboard real, estados, explicação e refresh", async ({
@@ -363,6 +445,28 @@ test("consome Dashboard real, estados, explicação e refresh", async ({
     page.getByRole("heading", { name: "Visão comercial E2E" }),
   ).toBeVisible();
   await expect(page.getByText("2.059,61", { exact: true })).toBeVisible();
+  const table = page
+    .getByRole("region", { name: "Dados da visualização" })
+    .first();
+  await expect(table.getByRole("columnheader")).toHaveText([
+    "Cidade",
+    "Receita",
+  ]);
+  const tableRows = table.locator("tbody tr");
+  await expect(tableRows).toHaveCount(4);
+  expect(
+    await tableRows.evaluateAll((rows) =>
+      rows.map((row) =>
+        [...row.querySelectorAll("td")].map((cell) => cell.textContent),
+      ),
+    ),
+  ).toEqual([
+    ["Jacareí", "551,40"],
+    ["São José dos Campos", "744,01"],
+    ["Taubaté", "689,50"],
+    ["—", "74,70"],
+  ]);
+  await expect(table.getByLabel("Sem valor")).toBeVisible();
   await expect(page.locator('[data-chart-type="BAR"]')).toBeVisible();
   await expect(page.locator('[data-chart-type="LINE"]')).toBeVisible();
   await expect(
@@ -426,7 +530,8 @@ test("mantém um único shell nas rotas reais e a navegação ativa", async ({
     { path: "/data", active: "Dados" },
     { path: "/data/upload", active: "Dados" },
     { path: `/data/datasets/${datasetId}`, active: "Dados" },
-    { path: `/dashboards/${dashboardId}`, active: null },
+    { path: "/dashboards", active: "Dashboards" },
+    { path: `/dashboards/${dashboardId}`, active: "Dashboards" },
   ];
   for (const route of routes) {
     await page.goto(route.path);
@@ -461,6 +566,39 @@ test("aplica a geometria desktop e mobile do shell e do Dashboard", async ({
     };
   });
   expect(desktop).toEqual({ topbarHeight: 56, navWidth: 224, gridColumns: 12 });
+  const desktopStyles = await page
+    .locator('[aria-label="Widgets do Dashboard"] > article')
+    .evaluateAll((cards) =>
+      cards.slice(0, 4).map((card) => ({
+        column: (card as HTMLElement).style.getPropertyValue("--widget-column"),
+        row: (card as HTMLElement).style.getPropertyValue("--widget-row"),
+      })),
+    );
+  expect(desktopStyles).toEqual([
+    { column: "1 / span 3", row: "1 / span 2" },
+    { column: "4 / span 3", row: "1 / span 2" },
+    { column: "7 / span 3", row: "1 / span 2" },
+    { column: "10 / span 3", row: "1 / span 2" },
+  ]);
+  expect(
+    await page
+      .getByText("Posicionamento inválido")
+      .evaluate((node) => node.closest("article")?.getAttribute("style")),
+  ).toBeNull();
+
+  await page.setViewportSize({ width: 800, height: 900 });
+  const tablet = await page.evaluate(() => {
+    const grid = document.querySelector('[aria-label="Widgets do Dashboard"]')!;
+    const first = grid.querySelector("article")!;
+    return {
+      columns: getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+      firstSpan: getComputedStyle(first).gridColumnStart,
+      overflow:
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+    };
+  });
+  expect(tablet).toEqual({ columns: 6, firstSpan: "span 2", overflow: false });
 
   await page.setViewportSize({ width: 390, height: 844 });
   const mobile = await page.evaluate(() => {
@@ -576,6 +714,24 @@ test("projeta os cards em stack no mobile", async ({ page }) => {
   expect(new Set(boxes.slice(0, 6).map((box) => box.left)).size).toBe(1);
   for (let index = 1; index < 6; index += 1)
     expect(boxes[index].top).toBeGreaterThan(boxes[index - 1].top);
+
+  const explanationButton = page
+    .getByRole("button", { name: "Como foi calculado?" })
+    .first();
+  await explanationButton.focus();
+  await explanationButton.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Como foi calculado?" });
+  await expect(dialog).toBeVisible();
+  expect(
+    await dialog.evaluate(
+      (element) =>
+        element.getBoundingClientRect().width <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(explanationButton).toBeFocused();
 });
 
 test("mantém NOT_FOUND cross-workspace terminal e opaco", async ({ page }) => {

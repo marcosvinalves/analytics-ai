@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:upload-ui": "playwright test upload-form.spec.ts",
-    "test:preview-ui": "node --env-file-if-exists=.env.local node_modules/@playwright/test/cli.js test dataset-detail.spec.ts",
+    "test:preview-ui": "node --env-file-if-exists=.env.local node_modules/@playwright/test/cli.js test --config playwright.preview.config.ts",
     "test:dashboard-ui": "node --env-file-if-exists=.env.local --conditions=react-server node_modules/@playwright/test/cli.js test --config playwright.dashboard.config.ts",
     "test:preview-runtime": "node scripts/tests/preview-runtime.mjs",
     "spike:duckdb": "node --env-file-if-exists=.env.local scripts/spikes/duckdb/run.ts",

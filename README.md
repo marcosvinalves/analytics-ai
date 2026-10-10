@@ -1,7 +1,7 @@
 ﻿# Analytics AI
 
-Technical Alpha (T-001 a T-004): Next.js App Router, React, TypeScript, PostgreSQL para metadados e upload CSV local.
-O upload persiste o arquivo raw e cria Dataset/DatasetVersion em PROCESSING, aguardando processamento futuro.
+Technical Alpha com fundações de dados, camada semântica, Query Foundation e consumo read-only
+de Dashboards. PostgreSQL guarda metadados e DuckDB executa consultas analíticas sobre o raw.
 
 ## Requisitos
 
@@ -131,7 +131,8 @@ rollback explícito de T-004/T-003 e upgrade da fundação T-002, além das cons
 Também testa upload com filesystem/PostgreSQL e inicia Next dev em porta loopback temporária
 para verificar a página e o endpoint HTTP real. Encerre outras instâncias de Next dev do checkout
 antes da suíte (o diretório de build de desenvolvimento é compartilhado).
-Ela não usa fallback para `DATABASE_URL`.
+Ela não usa fallback para `DATABASE_URL`. O guard destrutivo aceita somente `localhost`,
+`127.0.0.1` ou `::1`, porta 5433, PostgreSQL 18.6 e database descartável terminado em `_test`.
 Se não houver configuração/conectividade, o comando falha explicitamente.
 A preparação global recusa schemas `app`/`migration_metadata` e tabelas preexistentes.
 O teste de rollback remove/recria somente as tabelas que essa execução criou no banco descartável.
@@ -235,10 +236,10 @@ A migração T-004 adiciona original_filename e size_bytes; não altera as migra
 
 ### Regressão da UI de upload
 
-Com o servidor de desenvolvimento acima ativo e o contexto local configurado, execute
-`npm run test:upload-ui`. A suíte usa Edge instalado no Windows; em outros sistemas,
+Com `TEST_DATABASE_URL` configurada, execute `npm run test:upload-ui`. A suíte inicia seu próprio
+servidor e usa Edge instalado no Windows; em outros sistemas,
 instale Chromium com `npx playwright install chromium`. Para outra porta, exporte
-`UPLOAD_UI_BASE_URL` com a URL local correspondente.
+uma configuração Playwright própria em vez de apontar o teste para a aplicação de desenvolvimento.
 
 Os testes verificam hidratação, bloqueio de envio sem JavaScript e POST multipart sem
 navegação, além dos estados de sucesso/erro. As respostas do endpoint são interceptadas
@@ -354,7 +355,6 @@ requer JavaScript. Não há polling nem retry automático.
 Testes adicionais:
 
 ```sh
-# Com npm run dev ativo e uma versão READY no workspace de .env.local:
 npm run test:preview-ui
 npm run test:upload-ui
 
@@ -363,9 +363,29 @@ npm run build
 npm run test:preview-runtime
 ```
 
-O teste de UI lê o dataset real sem criar fixtures no banco da aplicação e compara snapshots
-das cinco tabelas de domínio e SHA-256 do raw antes/depois. Os testes de integração usam
-somente um TEST_DATABASE_URL vazio/separado, como nas etapas anteriores.
+O Preview E2E inicia seu próprio servidor em loopback, projeta `TEST_DATABASE_URL` como
+`DATABASE_URL` somente nesse processo, cria uma fixture READY no banco descartável e usa raw
+storage isolado. Não depende de Dataset preexistente nem do servidor do usuário. A suíte compara
+snapshots das cinco tabelas e SHA-256 do raw antes/depois.
+
+## Dashboards read-only — EPIC-04
+
+Com o contexto local de desenvolvimento habilitado, `/dashboards` lista somente os Dashboards do
+Workspace configurado no servidor. Mostra nome, descrição persistida e um link funcional para
+`/dashboards/[dashboardId]`; não oferece criação ou edição. Uma lista vazia informa honestamente
+que a criação pela interface ainda não está disponível na Technical Alpha.
+
+O detalhe executa cada Widget pelo mesmo `runSemanticQuery`: Semantic Layer, Query Foundation,
+DuckDB, resultado tipado, explicação e ViewModel. KPI, TABLE, BAR e LINE preservam strings exatas
+para INTEGER/DECIMAL e mantêm NULL distinto de zero. Listagem, execução e refresh não persistem
+resultados nem alteram metadata ou raw storage.
+
+```sh
+npm run test:dashboard-ui
+```
+
+A suíte prepara fixture própria no `TEST_DATABASE_URL`, usa storage dedicado, cobre discovery,
+visualizações e responsividade, e compara metadata e SHA-256 antes/depois.
 
 O teste runtime primeiro inicia o artefato real e verifica o bloqueio de produção. Depois
 gera apenas uma rota/configuração temporárias em `.local`, importa a MESMA implementação

@@ -1,13 +1,15 @@
 import path from "node:path";
 import { defineConfig } from "@playwright/test";
 
-const baseURL = "http://127.0.0.1:3017";
+const workspaceId = "10000000-0000-4000-8000-000000000008";
+const baseURL = "http://127.0.0.1:3018";
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  testMatch: "dataset-detail.spec.ts",
   fullyParallel: false,
   workers: 1,
-  timeout: 30000,
+  timeout: 45_000,
   use: {
     baseURL,
     browserName: "chromium",
@@ -15,7 +17,7 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 3017",
+    command: "npm run dev -- --hostname 127.0.0.1 --port 3018",
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000,
@@ -23,9 +25,9 @@ export default defineConfig({
       ...process.env,
       DATABASE_URL: process.env.TEST_DATABASE_URL ?? "",
       ENABLE_LOCAL_UPLOAD: "true",
-      DEV_UPLOAD_WORKSPACE_ID: "10000000-0000-4000-8000-000000000007",
+      DEV_UPLOAD_WORKSPACE_ID: workspaceId,
       LOCAL_UPLOAD_ORIGIN: baseURL,
-      LOCAL_STORAGE_ROOT: path.resolve(".local/upload-e2e-storage"),
+      LOCAL_STORAGE_ROOT: path.resolve(".local/preview-e2e-storage"),
     },
   },
 });

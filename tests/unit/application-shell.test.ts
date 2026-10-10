@@ -11,8 +11,14 @@ describe("application shell primitives", () => {
     expect(isNavigationActive("/", "/")).toBe(true);
     expect(isNavigationActive("/data", "/data")).toBe(true);
     expect(isNavigationActive("/data/upload", "/data")).toBe(true);
-    expect(isNavigationActive("/dashboards/id", "/")).toBe(false);
-    expect(isNavigationActive("/dashboards/id", "/data")).toBe(false);
+    expect(isNavigationActive("/dashboards", "/dashboards")).toBe(true);
+    expect(isNavigationActive("/dashboards/id", "/dashboards")).toBe(true);
+    for (const pathname of ["/", "/data", "/dashboards/id"]) {
+      const active = (["/", "/data", "/dashboards"] as const).filter((href) =>
+        isNavigationActive(pathname, href),
+      );
+      expect(active).toHaveLength(1);
+    }
   });
 
   test("renders a single page heading with breadcrumb and status", () => {

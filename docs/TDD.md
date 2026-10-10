@@ -436,6 +436,28 @@ QueryExplanation drawer add Client Component boundaries, in addition to T-028 BA
 Loading represents aggregate Dashboard execution and does not imply Widget streaming. T-029 adds
 no product mutation, endpoint, Server Action, migration, dependency, auth or editing flow.
 
+### ADR-030 — Application Shell, Discovery & EPIC-04 Closure
+
+Accepted during T-029.1/T-030. See
+[ADR-030](adr/ADR-030-application-shell-visual-unification.md).
+
+The root layout owns one global `AppShell`; only `PrimaryNavigation` is a Client Component.
+`/dashboards` is a force-dynamic Node Server Component that resolves the temporary server-side
+Workspace and reuses `listDashboards`. It renders only persisted name and optional description,
+with an honest empty state and no authoring action. Listing performs no Widget execution, DuckDB
+access or raw read. Opening a Dashboard continues exclusively through T-027/T-026 and the single
+Query Foundation pipeline.
+
+The final visualization matrix is KPI, TABLE, BAR and LINE. INTEGER and DECIMAL display from exact
+authoritative strings; NUMBER geometry never becomes display truth and NULL never becomes zero.
+Dashboard execution is bounded by 12 persisted Widgets and two local workers; Query Foundation
+retains its timeout, row, byte, thread and memory limits. QueryExplanation comes from the same
+resolved query as execution and the UI omits SQL, engine, storage and internal reason details.
+
+Destructive test tooling accepts only PostgreSQL 18.6 on loopback port 5433 with a disposable
+`*_test` database. Browser fixtures use isolated metadata and raw storage. Read-only E2E checks
+compare metadata snapshots and raw SHA-256 before and after consumption.
+
 ## 3. High-level architecture
 
 ```text

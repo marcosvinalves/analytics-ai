@@ -14,6 +14,8 @@ export function testDatabaseUrl(): string {
   getDatabaseConfig(value);
   const parsed = new URL(value);
   const name = decodeURIComponent(parsed.pathname.slice(1));
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname))
+    throw new Error("PostgreSQL de teste deve usar exclusivamente loopback.");
   if (parsed.port !== "5433")
     throw new Error(
       "PostgreSQL de teste deve usar exclusivamente a porta 5433.",

@@ -1,18 +1,36 @@
-import { test, expect } from "@playwright/test";
-import { Pool } from "pg";
-import { readFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
+import { expect, test } from "@playwright/test";
+import { Pool } from "pg";
+import { getDatabaseConfig } from "../../src/lib/db/config.ts";
+import { rawStorageKey } from "../../src/lib/storage/key.ts";
+import {
+  resetTestDatabase,
+  testDatabaseUrl,
+} from "../integration/helpers/database.ts";
+
+const organizationId = "20000000-0000-4000-8000-000000000008";
+const workspaceId = "10000000-0000-4000-8000-000000000008";
+const storageRoot = path.resolve(".local/preview-e2e-storage");
+const source = path.resolve("tests/fixtures/dataset-processing/valid.csv");
+const columns = [
+  ["id", "BIGINT", 0],
+  ["produto", "VARCHAR", 0],
+  ["quantidade", "BIGINT", 0],
+  ["preco_unitario", "DOUBLE", 0],
+  ["data", "DATE", 0],
+  ["ativo", "BOOLEAN", 0],
+  ["opcional", "VARCHAR", 1],
+] as const;
 
 let pool: Pool;
 let datasetId: string;
 let versionId: string;
-let name: string;
-let rowCount: string;
-let columnCount: number;
-let filename: string;
-let before: string;
-let rawHash: string;
+let rawPath: string;
+let metadataBefore: string;
+let rawHashBefore: string;
+
 async function snapshot() {
   return JSON.stringify(
     await Promise.all(
@@ -29,86 +47,102 @@ async function snapshot() {
     ),
   );
 }
-test.beforeAll(async () => {
-  if (!process.env.DATABASE_URL || !process.env.DEV_UPLOAD_WORKSPACE_ID)
-    throw Error(
-      "Configure the local development metadata database for read-only preview E2E",
-    );
-  pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    connectionTimeoutMillis: 5000,
-  });
-  const v = (
-    await pool.query(
-      `SELECT v.*,d.name FROM app.dataset_versions v JOIN app.datasets d ON d.id=v.dataset_id
-    WHERE d.workspace_id=$1 AND v.status='READY' ORDER BY v.created_at DESC LIMIT 1`,
-      [process.env.DEV_UPLOAD_WORKSPACE_ID],
-    )
-  ).rows[0];
-  if (!v)
-    throw Error(
-      "A READY local CSV is required; E2E does not create or process product data",
-    );
-  datasetId = v.dataset_id;
-  versionId = v.id;
-  name = v.name;
-  rowCount = v.row_count;
-  columnCount = v.column_count;
-  filename = path.resolve(
-    process.env.LOCAL_STORAGE_ROOT || ".local/raw-storage",
-    v.storage_key,
-  );
-  before = await snapshot();
-  rawHash = createHash("sha256")
+
+async function sha256(filename: string) {
+  return createHash("sha256")
     .update(await readFile(filename))
     .digest("hex");
+}
+
+test.beforeAll(async () => {
+  await resetTestDatabase();
+  await rm(storageRoot, { recursive: true, force: true });
+  pool = new Pool(getDatabaseConfig(testDatabaseUrl()));
+  await pool.query(
+    "INSERT INTO app.organizations(id,name) VALUES($1,'Preview E2E')",
+    [organizationId],
+  );
+  await pool.query(
+    "INSERT INTO app.workspaces(id,organization_id,name) VALUES($1,$2,'Preview E2E')",
+    [workspaceId, organizationId],
+  );
+  datasetId = (
+    await pool.query<{ id: string }>(
+      "INSERT INTO app.datasets(workspace_id,name,description) VALUES($1,'Preview E2E','Fixture isolada') RETURNING id",
+      [workspaceId],
+    )
+  ).rows[0].id;
+  versionId = randomUUID();
+  const storageKey = rawStorageKey(workspaceId, versionId);
+  rawPath = path.join(storageRoot, storageKey);
+  await mkdir(path.dirname(rawPath), { recursive: true });
+  await copyFile(source, rawPath);
+  const bytes = await readFile(rawPath);
+  await pool.query(
+    `INSERT INTO app.dataset_versions
+      (id,dataset_id,version_number,source_type,storage_namespace,storage_key,status,row_count,column_count,processed_at,original_filename,size_bytes)
+     VALUES($1,$2,1,'CSV','raw',$3,'READY',2,7,statement_timestamp(),'valid.csv',$4)`,
+    [versionId, datasetId, storageKey, bytes.length],
+  );
+  for (let index = 0; index < columns.length; index += 1) {
+    const [name, type, nullCount] = columns[index];
+    await pool.query(
+      `INSERT INTO app.dataset_columns
+        (dataset_version_id,physical_name,inferred_type,ordinal_position,nullable,null_count)
+       VALUES($1,$2,$3,$4,$5,$6)`,
+      [
+        versionId,
+        name,
+        type,
+        index + 1,
+        nullCount > 0 ? true : null,
+        nullCount,
+      ],
+    );
+  }
+  metadataBefore = await snapshot();
+  rawHashBefore = await sha256(rawPath);
 });
+
 test.afterAll(async () => {
   try {
-    if (before) {
-      expect(await snapshot()).toBe(before);
-      expect(
-        createHash("sha256")
-          .update(await readFile(filename))
-          .digest("hex"),
-      ).toBe(rawHash);
-    }
+    expect(await snapshot()).toBe(metadataBefore);
+    expect(await sha256(rawPath)).toBe(rawHashBefore);
   } finally {
     await pool?.end();
+    await rm(storageRoot, { recursive: true, force: true });
+    await resetTestDatabase();
   }
 });
-test("real READY dataset: navigation, schema, preview and no hydration errors", async ({
+
+test("fixture READY isolada: navegação, schema, preview e hidratação", async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
-    if (message.type() === "error") {
-      const location = message.location().url;
-      errors.push(`${message.text()}${location ? ` (${location})` : ""}`);
-    }
+    if (message.type() === "error") errors.push(message.text());
   });
   await page.goto("/data");
-  await page.getByRole("link", { name, exact: true }).first().click();
+  await page.getByRole("link", { name: "Preview E2E", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/data/datasets/${datasetId}`));
-  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Preview E2E", exact: true }),
+  ).toBeVisible();
   await expect(page.locator("dd").filter({ hasText: /^READY$/ })).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Schema do dataset" }).locator("tbody tr"),
-  ).toHaveCount(columnCount);
+  ).toHaveCount(7);
   await expect(
     page.getByRole("region", { name: "Linhas do preview" }).locator("tbody tr"),
-  ).toHaveCount(Math.min(50, Number(rowCount)));
+  ).toHaveCount(2);
   await expect(
     page.getByText("Desconhecido", { exact: true }).first(),
   ).toBeVisible();
   expect(errors).toEqual([]);
-  await page.screenshot({
-    path: "test-results/dataset-preview.png",
-    fullPage: true,
-  });
 });
-test("direct version URL renders without JavaScript", async ({
+
+test("URL direta da versão mantém metadata útil sem JavaScript", async ({
   browser,
   baseURL,
 }) => {
@@ -119,10 +153,8 @@ test("direct version URL renders without JavaScript", async ({
   try {
     const page = await context.newPage();
     await page.goto(`/data/datasets/${datasetId}?version=${versionId}`);
-    // Streaming Suspense replacement requires JS. With JS off the metadata remains useful;
-    // preview is verified with the normal browser above.
     await expect(
-      page.getByRole("heading", { name, exact: true }).first(),
+      page.getByRole("heading", { name: "Preview E2E", exact: true }).first(),
     ).toBeVisible();
     await expect(
       page.getByText("READY", { exact: true }).first(),
@@ -131,12 +163,11 @@ test("direct version URL renders without JavaScript", async ({
     await context.close();
   }
 });
-test("missing/invalid version returns actual HTTP 404", async ({ request }) => {
+
+test("versão ausente ou inválida retorna HTTP 404", async ({ request }) => {
   for (const url of [
     "/data/datasets/invalid",
     `/data/datasets/${datasetId}?version=11111111-1111-4111-8111-111111111111`,
-  ]) {
-    const response = await request.get(url);
-    expect(response.status()).toBe(404);
-  }
+  ])
+    expect((await request.get(url)).status()).toBe(404);
 });
