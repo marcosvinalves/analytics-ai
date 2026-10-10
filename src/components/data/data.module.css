@@ -79,6 +79,16 @@
 .result details {
   margin-top: 0.5rem;
 }
+.processingControl {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.processingControl span:empty {
+  display: none;
+}
 .facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));

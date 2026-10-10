@@ -1,10 +1,17 @@
+import type { ReactNode } from "react";
 import type { DatasetDetail } from "@/modules/dataset/domain/dataset-detail";
 import { PageHeader } from "../ui/page-header";
 import { StatusBadge } from "../ui/status-badge";
 import { InlineNotice } from "../ui/inline-notice";
 import styles from "./data.module.css";
 
-export function DatasetDetailView({ detail }: { detail: DatasetDetail }) {
+export function DatasetDetailView({
+  detail,
+  processingControl,
+}: {
+  detail: DatasetDetail;
+  processingControl?: ReactNode;
+}) {
   const { dataset, version, columns, preview } = detail;
   return (
     <>
@@ -56,8 +63,8 @@ export function DatasetDetailView({ detail }: { detail: DatasetDetail }) {
       </section>
       {version.status === "PROCESSING" && (
         <InlineNotice tone="attention" role="status">
-          Aguardando conclusão do processamento. Atualize a página após o
-          processamento local explícito.
+          <p>Este arquivo está pronto para processamento local explícito.</p>
+          {processingControl}
         </InlineNotice>
       )}
       {version.status === "FAILED" && (

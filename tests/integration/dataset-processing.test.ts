@@ -438,3 +438,55 @@ test.each(["READY", "FAILED"])(
     }
   },
 );
+
+test("duas execuções completas concorrentes criam um único profile e preservam raw/identidade", async () => {
+  const f = await fixture();
+  const hashBefore = createHash("sha256")
+    .update(await readFile(f.filename))
+    .digest("hex");
+  const versionsBefore = await pool.query(
+    "SELECT count(*)::int AS total FROM app.dataset_versions WHERE dataset_id=$1",
+    [dataset],
+  );
+
+  const results = await Promise.all([
+    processDatasetVersion(pool, f.scope),
+    processDatasetVersion(pool, f.scope),
+  ]);
+  expect(results.filter((r) => r.outcome === "TRANSITIONED")).toHaveLength(1);
+  expect(results.filter((r) => r.outcome === "ALREADY_TERMINAL")).toHaveLength(
+    1,
+  );
+
+  const current = await state(f.scope.datasetVersionId);
+  expect(current.version.status).toBe("READY");
+  expect(current.columns).toHaveLength(7);
+  expect(
+    new Set(current.columns.map((column) => column.ordinal_position)).size,
+  ).toBe(7);
+  for (const key of [
+    "id",
+    "dataset_id",
+    "version_number",
+    "source_type",
+    "storage_namespace",
+    "storage_key",
+    "original_filename",
+    "size_bytes",
+    "created_at",
+  ] as const)
+    expect(current.version[key]).toEqual(f.reference[key]);
+  expect(
+    (
+      await pool.query(
+        "SELECT count(*)::int AS total FROM app.dataset_versions WHERE dataset_id=$1",
+        [dataset],
+      )
+    ).rows[0].total,
+  ).toBe(versionsBefore.rows[0].total);
+  expect(
+    createHash("sha256")
+      .update(await readFile(f.filename))
+      .digest("hex"),
+  ).toBe(hashBefore);
+});

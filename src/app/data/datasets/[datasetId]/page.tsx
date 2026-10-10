@@ -6,6 +6,7 @@ import { readDatasetMetadata } from "@/modules/dataset/infrastructure/read-datas
 import { readDatasetPreview } from "@/modules/dataset/infrastructure/read-dataset-preview";
 import type { DatasetMetadata } from "@/modules/dataset/domain/dataset-detail";
 import { DatasetDetailView } from "@/components/data/dataset-detail";
+import { DatasetProcessingControl } from "@/components/data/dataset-processing-control";
 import { PageContainer } from "@/components/layout/page-container";
 
 export const runtime = "nodejs";
@@ -33,7 +34,10 @@ export default async function DatasetPage({
       <Suspense
         fallback={
           <>
-            <DatasetDetailView detail={metadata.detail} />
+            <DatasetDetailView
+              detail={metadata.detail}
+              processingControl={processingControl(metadata)}
+            />
             <p role="status">Carregando preview…</p>
           </>
         }
@@ -46,5 +50,19 @@ export default async function DatasetPage({
 
 async function PreviewDetail({ metadata }: { metadata: DatasetMetadata }) {
   const preview = await readDatasetPreview(metadata);
-  return <DatasetDetailView detail={{ ...metadata.detail, preview }} />;
+  return (
+    <DatasetDetailView
+      detail={{ ...metadata.detail, preview }}
+      processingControl={processingControl(metadata)}
+    />
+  );
+}
+
+function processingControl(metadata: DatasetMetadata) {
+  return metadata.detail.version.status === "PROCESSING" ? (
+    <DatasetProcessingControl
+      datasetId={metadata.detail.dataset.id}
+      datasetVersionId={metadata.detail.version.id}
+    />
+  ) : undefined;
 }

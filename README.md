@@ -302,7 +302,20 @@ Git foi inicializado localmente. CI de provedor fica pendente da escolha da hosp
 
 T-001 a T-008 concluídos. T-009 implementado para revisão; nenhum próximo ticket iniciado.
 
-## Processamento explícito local — T-007
+## Processamento explícito local — T-007 / T-032
+
+No ambiente local, uma versão PROCESSING exibe **Processar dados** em
+`/data/datasets/<datasetId>`. A ação resolve workspace, Dataset e DatasetVersion no
+servidor, executa o mesmo `processDatasetVersion` do fluxo técnico e atualiza a tela
+para READY ou FAILED. READY e FAILED não podem ser processados novamente. Não há
+polling, retry automático, fila ou processamento durante GET/renderização.
+
+O fluxo é síncrono e não oferece cancelamento fim a fim. Se a confirmação do resultado
+for perdida, atualize a página antes de uma nova tentativa. Este contexto continua sendo
+scaffolding da Technical Alpha local: não é autenticação, autorização ou segurança de
+tenant.
+
+A CLI permanece disponível como ferramenta técnica:
 
 Com Node 22.23.2, PostgreSQL migrado e um CSV recebido pelo T-004:
 
@@ -317,7 +330,7 @@ autorização ou segurança de tenant. O workspace vem somente do servidor; o ca
 dos metadados existentes, nunca de um argumento de arquivo. O upload continua PROCESSING.
 
 O processamento explícito lê o raw sem alterá-lo e persiste DatasetColumns, contagens e READY
-na mesma transação curta. Não cria preview, endpoint ou processamento automático.
+na mesma transação curta. Não cria processamento automático.
 Estados finais retornam ALREADY_TERMINAL sem alterações. Falhas determinísticas de CSV/raw
 podem marcar FAILED; indisponibilidade de infraestrutura mantém PROCESSING quando confirmado.
 PROCESSING_OUTCOME_UNKNOWN exige consultar o estado antes de tentar novamente: o commit

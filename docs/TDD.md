@@ -701,6 +701,36 @@ same permanent reader and proves native loading and query execution in compiled 
 Windows x64. This does not certify other deployment environments, standalone tracing or load.
 See docs/T-008-data-preview.md for checks, limitations and files. No migrations or new dependencies.
 
+### T-032 — Dataset Readiness and explicit processing UI
+
+The local-only Dataset Detail exposes **Processar dados** only for the selected PROCESSING
+DatasetVersion. A minimal Client Component owns `useActionState`, pending feedback and duplicate-click
+prevention. The page, metadata, schema and preview remain Server Components. GET rendering never
+starts processing; the mutation is a Server Action POST.
+
+The action re-resolves `localUploadContext`, requires the configured loopback Origin/Host, accepts
+exactly datasetId and datasetVersionId, validates both UUIDs and confirms the complete
+workspace/Dataset/DatasetVersion relationship through metadata. workspaceId, organizationId,
+storage identity and status are never client inputs. This remains Technical Alpha scaffolding,
+not authentication, authorization or tenant security.
+
+The action delegates exclusively to the existing `processDatasetVersion`. TRANSITIONED,
+ALREADY_TERMINAL, NOT_FOUND and both OPERATIONAL_FAILURE codes map to a minimal safe DTO. Terminal
+and uncertain outcomes revalidate the detail route. READY and FAILED cannot be reprocessed, and
+FAILED exposes no parser, storage or database detail. PROCESSING_OUTCOME_UNKNOWN requires an
+explicit state refresh before another attempt.
+
+Client pending state prevents duplicate submission in one rendered form but is not a distributed
+lock. Concurrent requests may inspect the immutable raw concurrently; the existing DatasetVersion
+row lock and conditional lifecycle transition still select one terminal winner without duplicate
+DatasetColumns. No mutex, lease, idempotency key, lifecycle state, polling, retry, queue or worker
+is added.
+
+Processing remains synchronous and has no end-to-end cancellation contract. The UI does not fake
+timeout or cancellation; navigation remains available and PostgreSQL state remains authoritative
+after interruption or uncertain confirmation. The raw bytes and storage identity remain unchanged.
+No migration, package, lifecycle, compiler, executor or DuckDB configuration changes are required.
+
 ### T-009 — Deterministic ground-truth aggregation
 
 The explicit local command calls `runGroundTruthAggregation(pool, {workspaceId,

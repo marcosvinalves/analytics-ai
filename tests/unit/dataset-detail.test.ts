@@ -55,13 +55,15 @@ test.each(["PROCESSING", "FAILED"] as const)(
           version: { ...detail.version, status },
           preview: { state: "UNAVAILABLE" },
         },
+        processingControl: createElement("button", null, "Processar dados"),
       }),
     );
     expect(html).not.toContain("<table>");
     expect(html).toContain(
       status === "FAILED"
         ? "Não foi possível processar"
-        : "Aguardando conclusão",
+        : "pronto para processamento",
     );
+    expect(html.includes("Processar dados")).toBe(status === "PROCESSING");
   },
 );
