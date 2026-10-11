@@ -804,6 +804,28 @@ values and return semantic INTEGER. NUMBER is displayed as approximate. The UI d
 currency, units, percentages or business meaning. T-035 adds no migration, dependency,
 publication, query execution, preview, DuckDB change or Ask behavior.
 
+### T-036 — Validation, publication and Ask transition
+
+The semantic onboarding route exposes explicit validation and publication only for the current
+workspace-scoped DRAFT. Validation delegates to `validateSemanticModelRevision`, remains
+`REPEATABLE READ READ ONLY`, and maps domain issues to bounded user-facing guidance without
+exposing paths, semantic UUIDs, AST, SQL or database details. Missing fields or metrics are normal
+incomplete onboarding states; unreadable lineage, types, AST or reference projection remain safe
+broken states and are not repaired automatically.
+
+Publication is a separate Server Action POST with explicit human confirmation. Browser identifiers
+are only locators: the action resolves the local server-controlled workspace and current DRAFT
+again, then delegates exclusively to `publishSemanticModelRevision`. The writer locks and validates
+the authoritative current DRAFT in the publication transaction. A prior UI result is therefore
+labelled **Válido nesta verificação** and is not a fingerprint or concurrency precondition. A valid
+concurrent change committed before the publication locks may be included in the published snapshot.
+
+`PUBLISHED` and `ALREADY_PUBLISHED` re-read the route as published. Validation failure remains
+editable. `PUBLICATION_OUTCOME_UNKNOWN` never authorizes automatic retry and requires an
+authoritative refresh. The published state offers no editing and no functional Ask CTA because no
+Ask route or provider exists yet. T-036 adds no migration, dependency, new DRAFT, Query Foundation
+change, DuckDB execution or raw/DatasetVersion mutation.
+
 ### T-009 — Deterministic ground-truth aggregation
 
 The explicit local command calls `runGroundTruthAggregation(pool, {workspaceId,

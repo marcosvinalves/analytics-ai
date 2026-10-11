@@ -389,6 +389,24 @@ dos quatro templates continuam visíveis em modo somente leitura. NUMBER é sina
 aproximado; SUM e COUNT mostram sua semântica de NULL. Nenhuma moeda, unidade ou semântica de
 negócio é inferida, e não há execução ou preview da métrica nesta etapa.
 
+## Validação e publicação semântica — T-036
+
+No fim do onboarding, o usuário valida explicitamente o DRAFT. A interface apresenta pendências
+seguras e oferece retorno às seções de campos e métricas. Uma validação bem-sucedida é comunicada
+como **Válido nesta verificação**: ela descreve o snapshot lido naquele instante e não congela o
+conteúdo.
+
+A publicação exige confirmação humana explícita e delega ao writer semântico existente. O writer
+bloqueia o modelo e a revisão, relê e valida o DRAFT autoritativo atual e somente então publica. Uma
+alteração concorrente válida que termine antes desses locks pode integrar o snapshot publicado.
+Resultado de COMMIT incerto nunca causa retry automático; a página deve ser atualizada antes de
+qualquer nova tentativa.
+
+Depois da publicação, a revisão aparece como PUBLISHED e os editores deixam de ser oferecidos. Ask
+ainda não possui rota ou experiência funcional nesta etapa. Publicar não executa consulta, não lê
+DuckDB e não altera raw ou DatasetVersion. O contexto local continua sendo scaffolding da
+Technical Alpha, não autenticação de produção.
+
 ## Data Preview local — T-008
 
 Com o mesmo contexto local do upload e `npm run dev`, abra `/data`. A lista mostra até

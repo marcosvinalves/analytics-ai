@@ -5,7 +5,6 @@ import { expect, test, type Page } from "@playwright/test";
 import { Pool } from "pg";
 import { getDatabaseConfig } from "../../src/lib/db/config.ts";
 import { createMetric } from "../../src/modules/semantic/infrastructure/metrics.ts";
-import { publishSemanticModelRevision } from "../../src/modules/semantic/infrastructure/semantic-publication.ts";
 import {
   resetTestDatabase,
   testDatabaseUrl,
@@ -129,6 +128,13 @@ test("upload, processamento e criação explícita reutilizam um único draft", 
     page.getByRole("heading", { name: "Revisar campos" }),
   ).toBeVisible();
   await expect(page.getByText("0 de 7 incluídos")).toBeVisible();
+  await page.getByRole("button", { name: "Validar configuração" }).click();
+  await expect(
+    page.getByText("Inclua ao menos um campo semântico."),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Crie ao menos uma métrica governada."),
+  ).toBeVisible();
 
   const quantity = page.locator("article").filter({
     has: page.getByRole("heading", { name: "quantidade", exact: true }),
@@ -378,9 +384,35 @@ test("upload, processamento e criação explícita reutilizam um único draft", 
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(390);
+
+  await page.getByRole("button", { name: "Validar configuração" }).click();
+  await expect(page.getByText("Válido nesta verificação")).toBeVisible();
+  const confirmation = page.getByLabel(
+    "Confirmo a publicação da configuração semântica atual. O sistema verificará novamente sua validade antes de publicar.",
+  );
+  await expect(
+    page.getByRole("button", { name: "Publicar revisão" }),
+  ).toBeDisabled();
+  await confirmation.check();
+  await page.getByRole("button", { name: "Publicar revisão" }).click();
+  await expect(
+    page.locator("dd").filter({ hasText: /^PUBLISHED$/ }),
+  ).toBeVisible();
+  await expect(page.getByText("Modelo semântico publicado.")).toBeVisible();
+  await expect(
+    page.getByText("O Ask ainda não está disponível nesta etapa."),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /Ask/i })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Validar configuração" }),
+  ).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.locator("dd").filter({ hasText: /^PUBLISHED$/ }),
+  ).toBeVisible();
   await page.getByRole("link", { name: "Voltar ao Dataset" }).click();
   await expect(
-    page.getByRole("link", { name: "Continuar preparação" }),
+    page.getByRole("link", { name: "Ver preparação" }),
   ).toBeVisible();
 
   const counts = await pool.query<{
@@ -421,45 +453,14 @@ test("publicação existente é somente descoberta e não cria outro draft", asy
   const row = (
     await pool.query<{
       dataset_id: string;
-      revision_id: string;
-      column_id: string;
     }>(
-      `SELECT d.id AS dataset_id,r.id AS revision_id,c.id AS column_id
+      `SELECT d.id AS dataset_id
        FROM app.datasets d
        JOIN app.semantic_models m ON m.dataset_id=d.id
        JOIN app.semantic_model_revisions r ON r.semantic_model_id=m.id
-       JOIN app.dataset_versions v ON v.id=r.dataset_version_id
-       JOIN app.dataset_columns c ON c.dataset_version_id=v.id
-       WHERE d.name='Semantic onboarding E2E' AND c.physical_name='quantidade'`,
+       WHERE d.name='Semantic onboarding E2E' AND r.status='PUBLISHED'`,
     )
   ).rows[0];
-  const field = (
-    await pool.query<{ field_key: string }>(
-      `SELECT field_key FROM app.semantic_fields
-       WHERE semantic_model_revision_id=$1 AND dataset_column_id=$2`,
-      [row.revision_id, row.column_id],
-    )
-  ).rows[0];
-  if (!field) throw new Error("Expected semantic field");
-  const metric = await createMetric(pool, {
-    workspaceId,
-    semanticModelRevisionId: row.revision_id,
-    name: "total_quantity",
-    label: "Quantidade total",
-    expression: {
-      version: 1,
-      kind: "aggregate",
-      op: "SUM",
-      expression: { kind: "field", fieldKey: field.field_key },
-    },
-  });
-  if (metric.outcome !== "CREATED") throw new Error("Expected metric");
-  expect(
-    await publishSemanticModelRevision(pool, {
-      workspaceId,
-      semanticModelRevisionId: row.revision_id,
-    }),
-  ).toMatchObject({ outcome: "PUBLISHED" });
 
   await page.goto(`/data/datasets/${row.dataset_id}`);
   await expect(
@@ -471,7 +472,7 @@ test("publicação existente é somente descoberta e não cria outro draft", asy
   await expect(
     page.locator("dd").filter({ hasText: /^PUBLISHED$/ }),
   ).toBeVisible();
-  await expect(page.getByText("Nenhum novo draft foi criado.")).toBeVisible();
+  await expect(page.getByText(/Nenhum novo draft foi criado/)).toBeVisible();
   expect(
     (
       await pool.query<{ total: number }>(

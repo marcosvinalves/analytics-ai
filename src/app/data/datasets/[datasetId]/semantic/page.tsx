@@ -6,6 +6,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { SemanticDraftControl } from "@/components/semantic/semantic-draft-control";
 import { SemanticFieldReviewEditor } from "@/components/semantic/semantic-field-review";
 import { SemanticMetricReviewEditor } from "@/components/semantic/semantic-metric-review";
+import { SemanticPublicationControl } from "@/components/semantic/semantic-publication-control";
 import { getMetadataPool } from "@/lib/db";
 import { localUploadContext } from "@/lib/local-upload-context";
 import { readDatasetMetadata } from "@/modules/dataset/infrastructure/read-dataset-metadata";
@@ -160,15 +161,65 @@ function SemanticState({
               {readiness.draft.datasetVersion.versionNumber}.
             </InlineNotice>
           ) : null}
-          <FieldReviewState result={fieldReview} />
-          <MetricReviewState result={metricReview} />
+          <div id="semantic-fields">
+            <FieldReviewState result={fieldReview} />
+          </div>
+          <div id="semantic-metrics">
+            <MetricReviewState result={metricReview} />
+          </div>
+          <PublicationState
+            readiness={readiness}
+            fieldReview={fieldReview}
+            metricReview={metricReview}
+          />
         </>
       ) : (
-        <p>
-          O modelo publicado permanece disponível. Nenhum novo draft foi criado.
-        </p>
+        <>
+          <InlineNotice tone="success" role="status">
+            Modelo semântico publicado. Esta revisão é um snapshot imutável.
+          </InlineNotice>
+          <p>
+            O Ask ainda não está disponível nesta etapa. Nenhum novo draft foi
+            criado.
+          </p>
+        </>
       )}
     </>
+  );
+}
+
+function PublicationState({
+  readiness,
+  fieldReview,
+  metricReview,
+}: {
+  readiness: Extract<
+    Awaited<ReturnType<typeof readSemanticOnboardingReadiness>>,
+    { outcome: "DRAFT_AVAILABLE" }
+  >;
+  fieldReview: Awaited<ReturnType<typeof readSemanticFieldReview>> | null;
+  metricReview: Awaited<ReturnType<typeof readSemanticMetricReview>> | null;
+}) {
+  if (
+    fieldReview?.outcome !== "EDITABLE" ||
+    metricReview?.outcome !== "EDITABLE"
+  )
+    return null;
+  if (
+    fieldReview.review.revision.id !== readiness.draft.id ||
+    metricReview.review.revision.id !== readiness.draft.id
+  )
+    return (
+      <InlineNotice tone="attention">
+        O draft mudou. Atualize a página antes de validar.
+      </InlineNotice>
+    );
+  return (
+    <SemanticPublicationControl
+      datasetId={readiness.dataset.id}
+      semanticModelRevisionId={readiness.draft.id}
+      hasPublishedRevision={readiness.published !== null}
+    />
   );
 }
 

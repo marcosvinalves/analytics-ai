@@ -1,0 +1,56 @@
+.review,
+.validationForm,
+.result,
+.confirmation,
+.confirmation form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.review {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--app-border);
+}
+
+.review h2,
+.review p {
+  margin: 0;
+}
+
+.validationForm,
+.confirmation form {
+  justify-items: start;
+}
+
+.validationForm span:empty,
+.confirmation p:empty {
+  display: none;
+}
+
+.result,
+.confirmation {
+  padding: 1rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface-subtle);
+}
+
+.issueList {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.625rem;
+  align-items: start;
+  max-width: 52rem;
+}
+
+.check input {
+  margin-top: 0.2rem;
+}
