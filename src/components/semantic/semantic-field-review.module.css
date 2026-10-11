@@ -1,0 +1,137 @@
+.review {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.reviewHeader,
+.columnHeader,
+.actions,
+.typeRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.reviewHeader h2,
+.reviewHeader p,
+.columnHeader h3,
+.columnHeader p,
+.removeArea p,
+.feedback {
+  margin: 0;
+}
+
+.progress {
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: var(--app-surface-subtle);
+  font-weight: 700;
+}
+
+.columnList {
+  display: grid;
+  gap: 1rem;
+}
+
+.columnCard {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+
+.columnHeader p,
+.compatibility,
+.feedback,
+.form small,
+.removeArea {
+  color: var(--app-muted);
+}
+
+.form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.form label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+
+.form input,
+.form select,
+.form textarea {
+  min-height: 2.6rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--app-border);
+  border-radius: 0.45rem;
+  color: var(--app-text);
+  background: var(--app-surface);
+  font: inherit;
+}
+
+.form textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.typeRow {
+  justify-content: flex-start;
+}
+
+.typeRow label:first-child {
+  min-width: 13rem;
+}
+
+.typeRow label:not(:first-child) {
+  max-width: 8rem;
+}
+
+.confirmation {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  padding: 0.75rem;
+  border-left: 0.25rem solid var(--app-attention, #a96500);
+  background: var(--app-surface-subtle);
+}
+
+.confirmation input {
+  min-height: auto;
+}
+
+.invalid {
+  margin: 0;
+  color: var(--app-danger, #a12525);
+  font-weight: 700;
+}
+
+.removeArea {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--app-border);
+}
+
+.feedback:empty {
+  display: none;
+}
+
+@media (max-width: 39.999rem) {
+  .reviewHeader,
+  .columnHeader,
+  .typeRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .typeRow label,
+  .typeRow label:first-child,
+  .typeRow label:not(:first-child) {
+    width: 100%;
+    max-width: none;
+  }
+}

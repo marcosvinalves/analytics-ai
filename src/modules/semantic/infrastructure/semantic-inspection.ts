@@ -237,6 +237,39 @@ async function inspectRow(client: PoolClient, row: InspectionRow) {
       } as const);
 }
 
+/** Reuses the published inspection inside an existing read-only MVCC snapshot. */
+export async function inspectPublishedSemanticModelSnapshot(
+  client: PoolClient,
+  input: InspectPublishedSemanticModelInput,
+): Promise<InspectPublishedSemanticModelResult> {
+  validateInspectPublishedSemanticModelInput(input);
+  const lookup = (
+    await client.query<PublishedLookupRow>(
+      `/* semantic-inspection:published */
+       SELECT m.id AS model_id, m.name AS model_name,
+         m.dataset_id AS model_dataset_id, d.id AS dataset_id,
+         d.name AS dataset_name, r.id AS revision_id,
+         r.revision_number, r.status AS revision_status,
+         r.label AS revision_label, r.description AS revision_description,
+         r.created_at AS revision_created_at,
+         r.published_at AS revision_published_at,
+         v.id AS version_id, v.version_number,
+         v.status AS version_status, v.dataset_id AS version_dataset_id
+       FROM app.semantic_models m
+       JOIN app.datasets d ON d.id = m.dataset_id
+       LEFT JOIN app.semantic_model_revisions r
+         ON r.semantic_model_id = m.id AND r.status = 'PUBLISHED'
+       LEFT JOIN app.dataset_versions v ON v.id = r.dataset_version_id
+       WHERE m.id = $1 AND d.workspace_id = $2`,
+      [input.semanticModelId, input.workspaceId],
+    )
+  ).rows[0];
+  if (!lookup) return { outcome: "NOT_FOUND" };
+  const row = completePublishedRow(lookup);
+  if (!row) return { outcome: "NO_PUBLISHED_REVISION" };
+  return inspectRow(client, row);
+}
+
 export async function inspectPublishedSemanticModel(
   pool: Pool,
   input: InspectPublishedSemanticModelInput,
@@ -246,37 +279,14 @@ export async function inspectPublishedSemanticModel(
   if (!client) return { outcome: "OPERATIONAL_FAILURE" };
   try {
     await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-    const lookup = (
-      await client.query<PublishedLookupRow>(
-        `/* semantic-inspection:published */
-         SELECT m.id AS model_id, m.name AS model_name,
-           m.dataset_id AS model_dataset_id, d.id AS dataset_id,
-           d.name AS dataset_name, r.id AS revision_id,
-           r.revision_number, r.status AS revision_status,
-           r.label AS revision_label, r.description AS revision_description,
-           r.created_at AS revision_created_at,
-           r.published_at AS revision_published_at,
-           v.id AS version_id, v.version_number,
-           v.status AS version_status, v.dataset_id AS version_dataset_id
-         FROM app.semantic_models m
-         JOIN app.datasets d ON d.id = m.dataset_id
-         LEFT JOIN app.semantic_model_revisions r
-           ON r.semantic_model_id = m.id AND r.status = 'PUBLISHED'
-         LEFT JOIN app.dataset_versions v ON v.id = r.dataset_version_id
-         WHERE m.id = $1 AND d.workspace_id = $2`,
-        [input.semanticModelId, input.workspaceId],
-      )
-    ).rows[0];
-    if (!lookup) {
+    const result = await inspectPublishedSemanticModelSnapshot(client, input);
+    if (
+      result.outcome === "NOT_FOUND" ||
+      result.outcome === "NO_PUBLISHED_REVISION"
+    ) {
       await client.query("ROLLBACK");
-      return { outcome: "NOT_FOUND" };
+      return result;
     }
-    const row = completePublishedRow(lookup);
-    if (!row) {
-      await client.query("ROLLBACK");
-      return { outcome: "NO_PUBLISHED_REVISION" };
-    }
-    const result = await inspectRow(client, row);
     await client.query("COMMIT");
     return result;
   } catch {

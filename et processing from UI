@@ -1,0 +1,14 @@
+ README.md                                          |  17 [32m+[m[31m-[m
+ docs/TDD.md                                        |  30 [32m+++[m
+ playwright.preview.config.ts                       |   2 [32m+[m[31m-[m
+ src/app/data/datasets/[datasetId]/actions.ts       | 148 [32m++++++++++++[m
+ src/app/data/datasets/[datasetId]/page.tsx         |  22 [32m+[m[31m-[m
+ src/components/data/data.module.css                |  10 [32m+[m
+ src/components/data/dataset-detail.tsx             |  13 [32m+[m[31m-[m
+ src/components/data/dataset-processing-control.tsx |  47 [32m++++[m
+ tests/e2e/dataset-processing.spec.ts               | 253 [32m+++++++++++++++++++++[m
+ tests/integration/dataset-processing.test.ts       |  52 [32m+++++[m
+ tests/unit/dataset-detail.test.ts                  |   4 [32m+[m[31m-[m
+ tests/unit/dataset-processing-action.test.ts       | 208 [32m+++++++++++++++++[m
+ tests/unit/dataset-processing-control.test.ts      |  30 [32m+++[m
+ 13 files changed, 827 insertions(+), 9 deletions(-)

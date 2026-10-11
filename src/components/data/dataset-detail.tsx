@@ -8,9 +8,11 @@ import styles from "./data.module.css";
 export function DatasetDetailView({
   detail,
   processingControl,
+  semanticControl,
 }: {
   detail: DatasetDetail;
   processingControl?: ReactNode;
+  semanticControl?: ReactNode;
 }) {
   const { dataset, version, columns, preview } = detail;
   return (
@@ -72,6 +74,7 @@ export function DatasetDetailView({
           Não foi possível processar esta versão. O preview não está disponível.
         </InlineNotice>
       )}
+      {version.status === "READY" && semanticControl}
       {version.status === "READY" && (
         <>
           <section className={styles.section} aria-labelledby="schema-title">

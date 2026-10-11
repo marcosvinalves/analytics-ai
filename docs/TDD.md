@@ -731,6 +731,54 @@ timeout or cancellation; navigation remains available and PostgreSQL state remai
 after interruption or uncertain confirmation. The raw bytes and storage identity remain unchanged.
 No migration, package, lifecycle, compiler, executor or DuckDB configuration changes are required.
 
+### T-033 — Semantic onboarding readiness and draft entry
+
+The local Dataset Detail reads semantic readiness only after the selected DatasetVersion is READY.
+The workspace-scoped result is exactly DATASET_NOT_READY, CAN_CREATE_DRAFT, DRAFT_AVAILABLE,
+PUBLISHED_ONLY, BROKEN, NOT_FOUND or OPERATIONAL_FAILURE. An empty DRAFT is a valid incomplete
+starting point. Relational state and any PUBLISHED inspection are resolved inside one REPEATABLE
+READ READ ONLY snapshot, so concurrent publication cannot mix revisions.
+
+**Preparar análise** is an explicit Server Action POST. It re-resolves the server-only local
+workspace and loopback Origin/Host, accepts only datasetId and datasetVersionId, verifies readiness
+and delegates creation exclusively to `createSemanticModelDraft`. GET rendering never creates a
+model or revision. Concurrent equivalent creates converge through the existing writer to CREATED
+or EXISTING; conflicts and uncertain outcomes remain safe and require rereading authoritative
+state.
+
+A pre-existing DRAFT remains the continuation point even when it belongs to another version of the
+same Dataset. The UI names that actual associated version and neither relinks it nor creates a
+second draft. PUBLISHED is inspected but not edited. T-033 adds no field/metric editor, validation,
+publication, migration, dependency, Query Foundation change or analytical execution. The local
+workspace context remains Technical Alpha scaffolding, not production authentication or
+authorization.
+
+### T-034 — Guided semantic field review
+
+The semantic onboarding route reads the existing DRAFT and its actual DatasetVersion in one
+workspace-scoped `REPEATABLE READ READ ONLY` transaction. It lists persisted DatasetColumns in
+ordinal order together with any SemanticField and metric dependency. This reader does not require a
+complete or publishable revision and does not use published inspection. GET performs no mutation.
+
+Field inclusion, update and removal are separate explicit Server Actions. Client input contains
+only Dataset and DatasetColumn identities plus editable values; workspace, current DRAFT,
+SemanticField identity and `field_key` are resolved again on the server. Origin/Host is checked
+against the local Alpha context. Mutations delegate only to the T-011 writers. Update preserves
+`id` and `field_key`; remove followed by create receives new identities. `FIELD_IN_USE` remains a
+hard removal guard and PUBLISHED/ARCHIVED revisions remain immutable.
+
+Direct physical-to-semantic mappings are suggestions, not persisted fields. SAFE is admissible
+without an extra acknowledgement. EXPLICIT requires a dedicated acknowledgement for the current
+column and selected semantic type; changing type or DECIMAL precision/scale invalidates it.
+INVALID is blocked before the writer and by the writer. Compatibility describes semantic
+admissibility only and does not prove physical conversion support. No currency, unit or business
+meaning is inferred from names.
+
+Confirmed writes re-read authoritative state and revalidate the route. Concurrent create of the
+same column converges through existing uniqueness constraints; last-write-wins remains the Alpha
+update policy. There is no ETag, retry framework or new lock. T-034 adds no metric editor, metric
+AST, publication, migration, dependency, Query Foundation or DuckDB behavior.
+
 ### T-009 — Deterministic ground-truth aggregation
 
 The explicit local command calls `runGroundTruthAggregation(pool, {workspaceId,

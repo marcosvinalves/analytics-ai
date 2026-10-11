@@ -6,7 +6,11 @@ const baseURL = "http://127.0.0.1:3018";
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: ["dataset-detail.spec.ts", "dataset-processing.spec.ts"],
+  testMatch: [
+    "dataset-detail.spec.ts",
+    "dataset-processing.spec.ts",
+    "semantic-onboarding.spec.ts",
+  ],
   fullyParallel: false,
   workers: 1,
   timeout: 45_000,

@@ -346,6 +346,36 @@ Inclui fixtures reais, rollback, visibilidade, concorrência e perda da confirma
 O binding DuckDB é runtime apenas do comando; build Next.js aprovado não comprova bundling
 em rotas nem compatibilidade com deploy futuro. Nenhuma migration nova é necessária.
 
+## Preparação semântica inicial — T-033
+
+Depois que uma DatasetVersion fica READY, o Dataset Detail oferece **Preparar análise**. A ação
+explícita cria, no servidor, o único SemanticModel do Dataset e sua primeira revisão DRAFT. Um
+refresh ou nova visita reutiliza o draft existente; GET/renderização nunca cria metadata. Se um
+draft estiver ligado a outra versão do mesmo Dataset, a interface informa a versão realmente
+associada e preserva sua identidade.
+
+A página `/data/datasets/<datasetId>/semantic` mostra o estado inicial DRAFT ou PUBLISHED e o
+retorno ao Dataset. PROCESSING e FAILED não oferecem criação. O workspace continua vindo do
+contexto local no servidor e todas as leituras e mutações são escopadas; esse contexto é
+scaffolding da Technical Alpha local, não autenticação ou autorização de produção.
+
+## Revisão guiada de campos — T-034
+
+Um DRAFT existente mostra as colunas físicas da DatasetVersion à qual ele realmente está ligado.
+O usuário inclui, atualiza ou remove cada SemanticField de forma explícita; GET e refresh são
+somente leitura. Atualizações preservam `id` e `field_key`. Remover e incluir de novo cria uma nova
+identidade. Campos usados por métricas não podem ser removidos.
+
+Compatibilidade SAFE pode ser confirmada diretamente. EXPLICIT exige uma confirmação dedicada que
+nomeia o tipo físico e o semântico; alterar tipo, precision ou scale invalida essa confirmação.
+INVALID nunca é enviado ao writer. Essas classificações expressam admissibilidade semântica e não
+prometem uma conversão física. Sugestões automáticas se limitam ao mapeamento direto de tipos já
+reconhecidos e não inferem moeda, unidade ou significado de negócio por nome de coluna.
+
+As Server Actions aceitam somente Dataset e DatasetColumn, reconstroem workspace, revisão DRAFT,
+campo e versão no servidor e delegam aos writers existentes. Não há retry automático em resultado
+incerto. T-034 não adiciona métricas, publicação, migrations, dependências nem execução analítica.
+
 ## Data Preview local — T-008
 
 Com o mesmo contexto local do upload e `npm run dev`, abra `/data`. A lista mostra até
