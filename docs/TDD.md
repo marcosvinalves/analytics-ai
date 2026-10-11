@@ -779,6 +779,31 @@ same column converges through existing uniqueness constraints; last-write-wins r
 update policy. There is no ETag, retry framework or new lock. T-034 adds no metric editor, metric
 AST, publication, migration, dependency, Query Foundation or DuckDB behavior.
 
+### T-035 — Governed metric templates
+
+The semantic onboarding route reads the DRAFT, its persisted SemanticFields, Metrics and
+`metric_field_references` inside one workspace-scoped `REPEATABLE READ READ ONLY` snapshot. Every
+AST is revalidated against the field types and its relational projection before presentation.
+Structural inconsistency returns a safe BROKEN state. A valid AST outside the guided vocabulary is
+shown read-only as `UNSUPPORTED_TEMPLATE`; incomplete DRAFTs do not require publication inspection.
+
+The guided vocabulary is exactly `SUM(FIELD)`, `COUNT(FIELD)`, `COUNT_DISTINCT(FIELD)` and
+`SUM(MULTIPLY(FIELD, FIELD))`. The browser submits only a template, DatasetColumn locators and
+editable metadata. The Server Action re-resolves workspace, DRAFT and fields, builds the AST and
+validates it with the T-012 type rules before delegating to the existing Metric writers. No client
+AST, SQL or result type is accepted. The same field may occupy both multiplication operands.
+
+Update preserves Metric `id` and `metric_key`; it is never remove plus create. A concurrent create
+conflict is considered unchanged only after an authoritative reread matches metadata, normalized
+template AST, result type and exact references. Other conflicts remain conflicts, and uncertain
+outcomes are never retried automatically. Existing revision locks keep publication and content
+mutation serialized; Alpha updates otherwise remain last-write-wins.
+
+SUM ignores NULL and returns NULL with no non-NULL inputs. COUNT and COUNT_DISTINCT count non-NULL
+values and return semantic INTEGER. NUMBER is displayed as approximate. The UI does not infer
+currency, units, percentages or business meaning. T-035 adds no migration, dependency,
+publication, query execution, preview, DuckDB change or Ask behavior.
+
 ### T-009 — Deterministic ground-truth aggregation
 
 The explicit local command calls `runGroundTruthAggregation(pool, {workspaceId,

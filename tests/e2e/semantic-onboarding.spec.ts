@@ -86,6 +86,7 @@ test.afterAll(async () => {
 test("upload, processamento e criação explícita reutilizam um único draft", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   const errors = browserErrors(page);
   await upload(
     page,
@@ -193,6 +194,127 @@ test("upload, processamento e criação explícita reutilizam um único draft", 
   await price.getByRole("button", { name: "Incluir campo" }).click();
   await expect(page.getByText("2 de 7 incluídos")).toBeVisible();
 
+  const category = page.locator("article").filter({
+    has: page.getByRole("heading", { name: "produto", exact: true }),
+  });
+  await category.getByRole("button", { name: "Incluir campo" }).click();
+  await expect(page.getByText("3 de 7 incluídos")).toBeVisible();
+
+  const metricFields = (
+    await pool.query<{ name: string; dataset_column_id: string }>(
+      `SELECT f.name,f.dataset_column_id FROM app.semantic_fields f
+       JOIN app.semantic_model_revisions r ON r.id=f.semantic_model_revision_id
+       JOIN app.semantic_models m ON m.id=r.semantic_model_id
+       WHERE m.dataset_id=$1`,
+      [version.dataset_id],
+    )
+  ).rows;
+  const columnId = (name: string) =>
+    metricFields.find((field) => field.name === name)?.dataset_column_id ?? "";
+
+  const createMetricForm = page.locator('form[aria-label="Criar métrica"]');
+  await expect(
+    page.getByRole("heading", { name: "Métricas governadas" }),
+  ).toBeVisible();
+  await expect(createMetricForm).toBeVisible();
+  await createMetricForm
+    .locator('select[name="firstDatasetColumnId"]')
+    .selectOption(columnId("produto"));
+  await expect(
+    createMetricForm.getByText(
+      "Os campos selecionados são incompatíveis com este template.",
+    ),
+  ).toBeVisible();
+  await expect(
+    createMetricForm.getByRole("button", { name: "Criar métrica" }),
+  ).toBeDisabled();
+  await createMetricForm
+    .locator('select[name="firstDatasetColumnId"]')
+    .selectOption(columnId("preco_unitario"));
+  await createMetricForm.getByLabel("Nome técnico").focus();
+  await page.keyboard.type("total_price");
+  await createMetricForm.getByLabel("Label").fill("Preço total");
+  await expect(
+    createMetricForm.getByText(
+      "SUM ignora NULL e retorna NULL quando não há valores não nulos.",
+    ),
+  ).toBeVisible();
+  await createMetricForm.getByRole("button", { name: "Criar métrica" }).click();
+  await expect(createMetricForm.locator('[aria-live="polite"]')).toContainText(
+    "Métrica criada.",
+  );
+
+  await createMetricForm.getByLabel("Template").selectOption("COUNT_FIELD");
+  await createMetricForm
+    .locator('select[name="firstDatasetColumnId"]')
+    .selectOption(columnId("quantidade"));
+  await createMetricForm.getByLabel("Nome técnico").fill("quantity_count");
+  await createMetricForm.getByLabel("Label").fill("Contagem de quantidades");
+  await expect(
+    createMetricForm.getByText("COUNT conta somente valores não nulos."),
+  ).toBeVisible();
+  await createMetricForm.getByRole("button", { name: "Criar métrica" }).click();
+  await expect(page.getByText("2 métricas")).toBeVisible();
+
+  await createMetricForm
+    .getByLabel("Template")
+    .selectOption("COUNT_DISTINCT_FIELD");
+  await createMetricForm
+    .locator('select[name="firstDatasetColumnId"]')
+    .selectOption(columnId("produto"));
+  await createMetricForm.getByLabel("Nome técnico").fill("product_count");
+  await createMetricForm.getByLabel("Label").fill("Produtos distintos");
+  await createMetricForm.getByRole("button", { name: "Criar métrica" }).click();
+  await expect(page.getByText("3 métricas")).toBeVisible();
+
+  await createMetricForm
+    .getByLabel("Template")
+    .selectOption("SUM_MULTIPLY_FIELDS");
+  await createMetricForm
+    .locator('select[name="firstDatasetColumnId"]')
+    .selectOption(columnId("quantidade"));
+  await createMetricForm
+    .locator('select[name="secondDatasetColumnId"]')
+    .selectOption(columnId("preco_unitario"));
+  await createMetricForm.getByLabel("Nome técnico").fill("revenue");
+  await createMetricForm.getByLabel("Label").fill("Receita");
+  await createMetricForm.getByRole("button", { name: "Criar métrica" }).click();
+  await expect(page.getByText("4 métricas")).toBeVisible();
+
+  const revenueBefore = (
+    await pool.query<{ id: string; metric_key: string }>(
+      `SELECT x.id,x.metric_key FROM app.metrics x
+       JOIN app.semantic_model_revisions r ON r.id=x.semantic_model_revision_id
+       JOIN app.semantic_models m ON m.id=r.semantic_model_id
+       WHERE m.dataset_id=$1 AND x.name='revenue'`,
+      [version.dataset_id],
+    )
+  ).rows[0];
+  const revenue = page.locator("article").filter({
+    has: page.getByRole("heading", { name: "Receita", exact: true }),
+  });
+  await revenue.getByRole("button", { name: "Editar métrica" }).click();
+  await revenue.getByLabel("Label").fill("Receita bruta");
+  await revenue.getByRole("button", { name: "Salvar métrica" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Receita bruta" }),
+  ).toBeVisible();
+  expect(
+    (
+      await pool.query<{ id: string; metric_key: string }>(
+        "SELECT id,metric_key FROM app.metrics WHERE id=$1",
+        [revenueBefore.id],
+      )
+    ).rows[0],
+  ).toEqual(revenueBefore);
+
+  const distinct = page.locator("article").filter({
+    has: page.getByRole("heading", { name: "Produtos distintos", exact: true }),
+  });
+  await distinct.getByRole("button", { name: "Remover métrica" }).click();
+  await distinct.getByRole("button", { name: "Confirmar remoção" }).click();
+  await expect(page.getByText("3 métricas")).toBeVisible();
+
   const priceField = (
     await pool.query<{ field_key: string; revision_id: string }>(
       `SELECT f.field_key,f.semantic_model_revision_id AS revision_id
@@ -203,19 +325,24 @@ test("upload, processamento e criação explícita reutilizam um único draft", 
       [version.dataset_id],
     )
   ).rows[0];
-  const priceMetric = await createMetric(pool, {
+  const unsupportedMetric = await createMetric(pool, {
     workspaceId,
     semanticModelRevisionId: priceField.revision_id,
-    name: "total_price",
-    label: "Preço total",
+    name: "price_plus_price",
+    label: "Preço duplicado",
     expression: {
       version: 1,
       kind: "aggregate",
       op: "SUM",
-      expression: { kind: "field", fieldKey: priceField.field_key },
+      expression: {
+        kind: "binary",
+        op: "ADD",
+        left: { kind: "field", fieldKey: priceField.field_key },
+        right: { kind: "field", fieldKey: priceField.field_key },
+      },
     },
   });
-  expect(priceMetric.outcome).toBe("CREATED");
+  expect(unsupportedMetric.outcome).toBe("CREATED");
 
   const saleDate = page.locator("article").filter({
     has: page.getByRole("heading", { name: "data", exact: true }),
@@ -228,7 +355,15 @@ test("upload, processamento e criação explícita reutilizam um único draft", 
 
   await page.reload();
   await expect(page.locator("dd").filter({ hasText: /^DRAFT$/ })).toBeVisible();
-  await expect(page.getByText("2 de 7 incluídos")).toBeVisible();
+  await expect(page.getByText("3 de 7 incluídos")).toBeVisible();
+  await expect(page.getByText("4 métricas")).toBeVisible();
+  const unsupported = page.locator("article").filter({
+    has: page.getByRole("heading", { name: "Preço duplicado", exact: true }),
+  });
+  await expect(unsupported.getByText("Template não suportado")).toBeVisible();
+  await expect(
+    unsupported.getByRole("button", { name: "Editar métrica" }),
+  ).toHaveCount(0);
   const persistedPrice = page.locator("article").filter({
     has: page.getByRole("heading", { name: "preco_unitario", exact: true }),
   });
@@ -264,8 +399,8 @@ test("upload, processamento e criação explícita reutilizam um único draft", 
   expect(counts.rows[0]).toEqual({
     models: 1,
     revisions: 1,
-    fields: 2,
-    metrics: 1,
+    fields: 3,
+    metrics: 4,
   });
   expect(
     JSON.stringify(

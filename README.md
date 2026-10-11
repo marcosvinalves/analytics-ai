@@ -376,6 +376,19 @@ As Server Actions aceitam somente Dataset e DatasetColumn, reconstroem workspace
 campo e versão no servidor e delegam aos writers existentes. Não há retry automático em resultado
 incerto. T-034 não adiciona métricas, publicação, migrations, dependências nem execução analítica.
 
+## Métricas governadas — T-035
+
+No mesmo onboarding, um DRAFT com campos semânticos permite criar métricas por quatro templates:
+somar um campo, contar valores não nulos, contar valores distintos não nulos e somar a
+multiplicação de dois campos. O usuário escolhe somente campos persistidos da revisão. O servidor
+resolve novamente o workspace e o DRAFT, constrói o AST v1 e delega aos writers existentes; AST,
+SQL e tipo resultante nunca vêm do browser.
+
+Edições preservam `id` e `metric_key`. Remoções exigem confirmação. Métricas com AST válido fora
+dos quatro templates continuam visíveis em modo somente leitura. NUMBER é sinalizado como
+aproximado; SUM e COUNT mostram sua semântica de NULL. Nenhuma moeda, unidade ou semântica de
+negócio é inferida, e não há execução ou preview da métrica nesta etapa.
+
 ## Data Preview local — T-008
 
 Com o mesmo contexto local do upload e `npm run dev`, abra `/data`. A lista mostra até

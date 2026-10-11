@@ -5,11 +5,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { PageContainer } from "@/components/layout/page-container";
 import { SemanticDraftControl } from "@/components/semantic/semantic-draft-control";
 import { SemanticFieldReviewEditor } from "@/components/semantic/semantic-field-review";
+import { SemanticMetricReviewEditor } from "@/components/semantic/semantic-metric-review";
 import { getMetadataPool } from "@/lib/db";
 import { localUploadContext } from "@/lib/local-upload-context";
 import { readDatasetMetadata } from "@/modules/dataset/infrastructure/read-dataset-metadata";
 import { readSemanticOnboardingReadiness } from "@/modules/semantic/infrastructure/read-semantic-onboarding";
 import { readSemanticFieldReview } from "@/modules/semantic/infrastructure/read-semantic-field-review";
+import { readSemanticMetricReview } from "@/modules/semantic/infrastructure/read-semantic-metric-review";
 import styles from "@/components/data/data.module.css";
 
 export const runtime = "nodejs";
@@ -47,6 +49,13 @@ export default async function SemanticOnboardingPage({
           datasetId,
         })
       : null;
+  const metricReview =
+    readiness.outcome === "DRAFT_AVAILABLE"
+      ? await readSemanticMetricReview(pool, {
+          workspaceId: context.workspaceId,
+          datasetId,
+        })
+      : null;
 
   const backHref = `/data/datasets/${datasetId}?version=${metadata.detail.version.id}`;
   return (
@@ -65,7 +74,11 @@ export default async function SemanticOnboardingPage({
         aria-labelledby="semantic-state-title"
       >
         <h2 id="semantic-state-title">Estado semântico</h2>
-        <SemanticState readiness={readiness} fieldReview={fieldReview} />
+        <SemanticState
+          readiness={readiness}
+          fieldReview={fieldReview}
+          metricReview={metricReview}
+        />
       </section>
       <ActionLink href={backHref}>Voltar ao Dataset</ActionLink>
     </PageContainer>
@@ -75,12 +88,14 @@ export default async function SemanticOnboardingPage({
 function SemanticState({
   readiness,
   fieldReview,
+  metricReview,
 }: {
   readiness: Exclude<
     Awaited<ReturnType<typeof readSemanticOnboardingReadiness>>,
     { outcome: "NOT_FOUND" }
   >;
   fieldReview: Awaited<ReturnType<typeof readSemanticFieldReview>> | null;
+  metricReview: Awaited<ReturnType<typeof readSemanticMetricReview>> | null;
 }) {
   if (readiness.outcome === "OPERATIONAL_FAILURE")
     return (
@@ -146,6 +161,7 @@ function SemanticState({
             </InlineNotice>
           ) : null}
           <FieldReviewState result={fieldReview} />
+          <MetricReviewState result={metricReview} />
         </>
       ) : (
         <p>
@@ -154,6 +170,33 @@ function SemanticState({
       )}
     </>
   );
+}
+
+function MetricReviewState({
+  result,
+}: {
+  result: Awaited<ReturnType<typeof readSemanticMetricReview>> | null;
+}) {
+  if (!result || result.outcome === "NO_DRAFT")
+    return (
+      <InlineNotice tone="attention">
+        O draft mudou. Atualize a página antes de editar métricas.
+      </InlineNotice>
+    );
+  if (result.outcome === "NOT_FOUND") notFound();
+  if (result.outcome === "OPERATIONAL_FAILURE")
+    return (
+      <InlineNotice tone="danger" role="alert">
+        A revisão de métricas está temporariamente indisponível.
+      </InlineNotice>
+    );
+  if (result.outcome === "BROKEN")
+    return (
+      <InlineNotice tone="danger" role="alert">
+        {result.message}
+      </InlineNotice>
+    );
+  return <SemanticMetricReviewEditor review={result.review} />;
 }
 
 function FieldReviewState({
